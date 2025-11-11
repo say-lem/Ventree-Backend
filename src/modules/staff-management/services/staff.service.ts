@@ -56,8 +56,7 @@ export class StaffService {
   }
 
  
-   // Create new staff member
-   
+// Create new staff member   
   async createStaff(
     input: CreateStaffInput,
     metadata: RequestMetadata
@@ -84,6 +83,8 @@ export class StaffService {
       );
     }
 
+
+    //need to include a method to verfiy these phonenumbers for the staff
     // Check if phone number already exists for this shop
     const phoneExists = await this.staffRepository.phoneNumberExistsForOtherStaff(
       shopId,
@@ -101,7 +102,6 @@ export class StaffService {
       throw new ConflictError("Phone number already registered for another staff member in this shop");
     }
 
-    // Hash password
     const passwordHash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
 
     // Create staff
@@ -134,8 +134,7 @@ export class StaffService {
     return staff;
   }
 
-   // Get all staff for a shop
-   
+// Get all staff for a shop  
   async getStaffList(
     shopId: string,
     options: StaffQueryOptions,
@@ -159,8 +158,7 @@ export class StaffService {
     return result;
   }
 
-   // Get single staff member
-   
+ // Get single staff member   
   async getStaffById(
     staffId: string,
     shopId: string,
@@ -193,8 +191,7 @@ export class StaffService {
     return staff;
   }
 
-   // Update staff member
-   
+// Update staff member
   async updateStaff(
     staffId: string,
     shopId: string,
@@ -276,8 +273,7 @@ export class StaffService {
   }
 
   
-   //Deactivate staff member (soft delete)
-   
+//Deactivate staff member (soft delete)
   async deactivateStaff(
     staffId: string,
     shopId: string,
@@ -319,8 +315,7 @@ export class StaffService {
     return deactivatedStaff;
   }
 
-   // Permanently delete staff member
-   
+// Permanently delete staff member 
   async deleteStaff(
     staffId: string,
     shopId: string,
@@ -356,8 +351,7 @@ export class StaffService {
     });
   }
 
-   // Reactivate staff member
-  
+// Reactivate staff member
   async reactivateStaff(
     staffId: string,
     shopId: string,
@@ -407,8 +401,7 @@ export class StaffService {
     return reactivatedStaff;
   }
 
-   // Get staff statistics for a shop
-   
+// Get staff statistics for a shop
   async getStaffStatistics(
     shopId: string,
     metadata: RequestMetadata

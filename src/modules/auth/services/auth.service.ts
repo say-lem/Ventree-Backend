@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Shop from "../models/shop";
-import Staff from "../models/staff";
+import Staff from "../../staff-management/models/staff";
 import { generateOTP, sendOTP } from "../utils/otpHandler";
 import { hashOTP, verifyOTP } from "../utils/otpHash";
 import { logAuditEvent } from "../utils/auditLogger";

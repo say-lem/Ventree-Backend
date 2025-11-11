@@ -3,23 +3,17 @@ import { IStaff, StaffQueryOptions } from "../types";
 import { Types } from "mongoose";
 
 export class StaffRepository {
-  /**
-   * Find staff by ID
-   */
+   // Find staff by ID
   async findById(staffId: string): Promise<IStaff | null> {
     return await Staff.findById(staffId);
   }
 
-  /**
-   * Find staff by ID with password
-   */
+   // Find staff by ID with password  
   async findByIdWithPassword(staffId: string): Promise<IStaff | null> {
     return await Staff.findById(staffId).select("+passwordHash");
   }
 
-  /**
-   * Find staff by shop ID and phone number
-   */
+   //Find staff by shop ID and phone number
   async findByShopAndPhone(
     shopId: string,
     phoneNumber: string
@@ -30,9 +24,7 @@ export class StaffRepository {
     });
   }
 
-  /**
-   * Find all staff for a shop with filters
-   */
+   //Find all staff for a shop with filters
   async findByShopId(
     shopId: string,
     options: StaffQueryOptions = {}
@@ -68,11 +60,9 @@ export class StaffRepository {
       pages: Math.ceil(total / limit),
     };
   }
-
-  /**
-   * Count staff for a shop
-   */
-  async countByShopId(shopId: string, activeOnly: boolean = true): Promise<number> {
+  
+   // Count staff for a shop
+   async countByShopId(shopId: string, activeOnly: boolean = true): Promise<number> {
     const query: any = { shopId: new Types.ObjectId(shopId) };
     if (activeOnly) {
       query.isActive = true;
@@ -80,9 +70,7 @@ export class StaffRepository {
     return await Staff.countDocuments(query);
   }
 
-  /**
-   * Create new staff member
-   */
+   //Create new staff member
   async create(data: {
     shopId: string;
     staffName: string;
@@ -96,9 +84,7 @@ export class StaffRepository {
     });
   }
 
-  /**
-   * Update staff member
-   */
+ //Update staff member
   async update(
     staffId: string,
     updates: Partial<IStaff>
@@ -106,9 +92,7 @@ export class StaffRepository {
     return await Staff.findByIdAndUpdate(staffId, updates, { new: true });
   }
 
-  /**
-   * Soft delete (deactivate) staff member
-   */
+  // Soft delete (deactivate) staff member
   async deactivate(staffId: string): Promise<IStaff | null> {
     return await Staff.findByIdAndUpdate(
       staffId,
@@ -116,17 +100,13 @@ export class StaffRepository {
       { new: true }
     );
   }
-
-  /**
-   * Hard delete staff member
-   */
+  
+  // Hard delete staff member
   async delete(staffId: string): Promise<void> {
     await Staff.findByIdAndDelete(staffId);
   }
 
-  /**
-   * Reactivate staff member
-   */
+  //Reactivate staff member
   async reactivate(staffId: string): Promise<IStaff | null> {
     return await Staff.findByIdAndUpdate(
       staffId,
@@ -135,9 +115,7 @@ export class StaffRepository {
     );
   }
 
-  /**
-   * Check if phone number exists for another staff in the same shop
-   */
+  //Check if phone number exists for another staff in the same shop
   async phoneNumberExistsForOtherStaff(
     shopId: string,
     phoneNumber: string,
@@ -167,18 +145,14 @@ export class StaffRepository {
     });
   }
 
-  /**
-   * Increment failed login attempts
-   */
+ // Increment failed login attempts
   async incrementFailedLoginAttempts(staffId: string): Promise<void> {
     await Staff.findByIdAndUpdate(staffId, {
       $inc: { failedLoginAttempts: 1 },
     });
   }
 
-  /**
-   * Lock account after too many failed attempts
-   */
+  // Lock account after too many failed attempts
   async lockAccount(staffId: string, lockoutDuration: number): Promise<void> {
     await Staff.findByIdAndUpdate(staffId, {
       lockoutUntil: new Date(Date.now() + lockoutDuration),
