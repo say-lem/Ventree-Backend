@@ -1,30 +1,34 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../../../shared/utils/asyncHandler";
-import { Inventory } from "../models/Inventory";
-import { AppError, AuthorizationError, ValidationError, NotFoundError } from "../../../shared/utils/AppError";
+import { AuthorizationError, ValidationError } from "../../../shared/utils/AppError";
+import * as InventoryService from "../services/Inventory.Service";
 
-//Add a new product to inventory
+// Add a new product to inventory
 export const addProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId } = req.params;
   const { name, costPrice, sellingPrice, unit, quantity, lowStockAt } = req.body;
-  const userId = req.user?.id; 
+  const userId = req.user?.id;
 
+  // Authorization check
   if (req.user?.role !== "owner") {
     throw new AuthorizationError("Only shop owners can add products");
   }
 
-  if (!name || !costPrice || !sellingPrice || !unit)
+  // Validation
+  if (!name || !costPrice || !sellingPrice || !unit) {
     throw new ValidationError("Missing required product fields");
+  }
 
-  const product = await Inventory.create({
+  // Call service
+  const product = await InventoryService.addProduct({
     shopId,
-    uploader: userId,
+    uploader: userId!,
     name,
     costPrice,
     sellingPrice,
     unit,
-    quantity: quantity || 0,
-    lowStockAt: lowStockAt || 5,
+    quantity,
+    lowStockAt,
   });
 
   res.status(201).json({
@@ -34,11 +38,48 @@ export const addProduct = asyncHandler(async (req: Request, res: Response, next:
   });
 });
 
-//Get all inventory for a shop
+export const updateProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId, productId } = req.params;
+  const updateData = req.body;
+
+  // Authorization check
+  if (req.user?.role !== "owner") {
+    throw new AuthorizationError("Only shop owners can update products");
+  }
+
+  // Call service
+  const updatedProduct = await InventoryService.updateProduct(shopId, productId, updateData);
+
+  res.status(200).json({
+    success: true,
+    message: "Product updated successfully",
+    data: updatedProduct,
+  });
+});
+
+//delete a product from inventory
+export const deleteProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId, productId } = req.params;
+
+  // Authorization check
+  if (req.user?.role !== "owner") {
+    throw new AuthorizationError("Only shop owners can delete products");
+  }
+
+  // Call service to delete product
+  await InventoryService.deleteProduct(shopId, productId);
+
+  res.status(200).json({
+    success: true,
+    message: "Product deleted successfully",
+  });
+});
+
+// Get all inventory for a shop
 export const getInventory = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId } = req.params;
 
-  const inventory = await Inventory.find({ shopId });
+  const inventory = await InventoryService.getInventory(shopId);
 
   res.status(200).json({
     success: true,
@@ -46,19 +87,21 @@ export const getInventory = asyncHandler(async (req: Request, res: Response, nex
   });
 });
 
-//Increase stock quantity
+// Increase stock quantity
 export const stockIn = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId } = req.params;
   const { productId, quantity } = req.body;
 
-  if (!productId || !quantity)
+  // Validation
+  if (!productId || !quantity) {
     throw new ValidationError("Product ID and quantity are required");
+  }
 
-  const product = await Inventory.findOne({ _id: productId, shopId });
-  if (!product) throw new NotFoundError("Product not found");
-
-  product.quantity += quantity;
-  await product.save();
+  const product = await InventoryService.stockIn({
+    shopId,
+    productId,
+    quantity,
+  });
 
   res.status(200).json({
     success: true,
@@ -67,22 +110,21 @@ export const stockIn = asyncHandler(async (req: Request, res: Response, next: Ne
   });
 });
 
-//Decrease stock quantity (triggered by sales)
+// Decrease stock quantity (triggered by sales)
 export const stockOut = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId } = req.params;
   const { productId, quantity } = req.body;
 
-  if (!productId || !quantity)
+  // Validation
+  if (!productId || !quantity) {
     throw new ValidationError("Product ID and quantity are required");
+  }
 
-  const product = await Inventory.findOne({ _id: productId, shopId });
-  if (!product) throw new NotFoundError("Product not found");
-
-  if (product.quantity < quantity)
-    throw new AppError("Not enough stock available", 400);
-
-  product.quantity -= quantity;
-  await product.save();
+  const product = await InventoryService.stockOut({
+    shopId,
+    productId,
+    quantity,
+  });
 
   res.status(200).json({
     success: true,
