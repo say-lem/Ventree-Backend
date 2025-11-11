@@ -9,6 +9,10 @@ export const addProduct = asyncHandler(async (req: Request, res: Response, next:
   const { name, costPrice, sellingPrice, unit, quantity, lowStockAt } = req.body;
   const userId = req.user?.id; 
 
+  if (req.user?.role !== "owner") {
+    throw new AuthorizationError("Only shop owners can add products");
+  }
+
   if (!name || !costPrice || !sellingPrice || !unit)
     throw new ValidationError("Missing required product fields");
 
