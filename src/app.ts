@@ -5,10 +5,9 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { authRouter } from "./modules/auth";
+import { inventoryMgtRouter } from "./modules/inventory-mgt";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
-import dotenv from "dotenv";
 
-dotenv.config();
 
 const app: Application = express();
 
@@ -39,6 +38,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 // Routes
 app.use("/api/auth", authRouter);
+app.use("/api/shops", inventoryMgtRouter);
 
 // 404 handler (must be after all routes)
 app.use(notFoundHandler);
