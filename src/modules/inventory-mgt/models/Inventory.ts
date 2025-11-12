@@ -8,7 +8,7 @@ export enum Unit {
 
 export interface IInventory extends Document {
   shopId: mongoose.Types.ObjectId;
-  uploader: mongoose.Types.ObjectId;
+  uploader: string;
   name: string;
   quantity: number;
   costPrice: number;
@@ -27,7 +27,7 @@ const inventorySchema = new Schema<IInventory>(
       required: true,
     },
     uploader: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "User",
       required: true,
     },

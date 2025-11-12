@@ -4,11 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-<<<<<<< HEAD
      "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-=======
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
->>>>>>> origin/dev
     "build": "tsc",
     "start": "node dist/server.js"
   },

@@ -7,7 +7,8 @@ import * as InventoryService from "../services/Inventory.Service";
 export const addProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId } = req.params;
   const { name, costPrice, sellingPrice, unit, quantity, lowStockAt } = req.body;
-  const userId = req.user?.id;
+  const userId = req.user?.profileId;
+
 
   // Authorization check
   if (req.user?.role !== "owner") {
