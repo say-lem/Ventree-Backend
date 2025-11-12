@@ -61,11 +61,6 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response, ne
 export const deleteProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { shopId, productId } = req.params;
 
-  // Authorization check
-  if (req.user?.role !== "owner") {
-    throw new AuthorizationError("Only shop owners can delete products");
-  }
-
   // Call service to delete product
   await InventoryService.deleteProduct(shopId, productId);
 
