@@ -6,6 +6,7 @@ import {
   deleteProduct,
   stockIn,
   stockOut,
+  getLowStockProducts
 } from "../controllers/Inventory.Controller";
 //import { isAuthenticated } from "../middlewares/isAuthenticated"; 
 import { fakeAuth } from "../middlewares/fakeAuth";
@@ -19,5 +20,6 @@ router.post("/:shopId/inventory/stock-in",  fakeAuth, authorize("owner", "staff"
 router.post("/:shopId/inventory/stock-out",  fakeAuth, authorize("owner", "staff"), stockOut);
 router.put("/:shopId/products/:productId", fakeAuth, authorize("owner"), updateProduct);
 router.delete("/:shopId/products/:productId", fakeAuth, authorize("owner"), deleteProduct);
+router.get("/:shopId/inventory/low-stock", fakeAuth, authorize("owner", "staff"), getLowStockProducts);
 
 export default router;

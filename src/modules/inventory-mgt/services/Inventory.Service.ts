@@ -111,3 +111,13 @@ interface StockUpdateData {
 
     return product;
   }
+
+  // Get all products that are low in stock for a shop
+  export const getLowStockProducts = async (shopId: string) =>{
+    const lowStockProducts = await Inventory.find({ 
+      shopId,
+      $expr: { $lte: ["$quantity", "$lowStockAt"] }
+    }).sort({ quantity: 1 }); 
+
+    return lowStockProducts;
+  }

@@ -127,3 +127,52 @@ export const stockOut = asyncHandler(async (req: Request, res: Response, next: N
     data: product,
   });
 });
+
+// Update product details
+export const updateProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId, productId } = { ...req.params, ...req.params };
+  const updates = req.body;
+
+  const product = await Inventory.findOne({ _id: productId, shopId });
+  if (!product) throw new NotFoundError("Product not found");
+
+  Object.assign(product, updates);
+  await product.save();
+
+  res.status(200).json({ success: true, message: "Product updated", data: product });
+});
+
+// Delete a product
+export const deleteProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId, productId } = req.params;
+
+  const product = await Inventory.findOneAndDelete({ _id: productId, shopId });
+  if (!product) throw new NotFoundError("Product not found");
+
+  res.status(200).json({ success: true, message: "Product deleted" });
+});
+
+// Get low stock products for a shop
+export const getLowStockProducts = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId } = req.params;
+
+  const products = await Inventory.find({ shopId, $expr: { $lte: ["$quantity", "$lowStockAt"] } });
+
+  res.status(200).json({ success: true, data: products });
+});
+
+// Get all products that are low in stock
+export const getLowStockProducts = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { shopId } = req.params;
+
+  const lowStockProducts = await InventoryService.getLowStockProducts(shopId);
+
+  res.status(200).json({
+    success: true,
+    message: lowStockProducts.length > 0 
+      ? `Found ${lowStockProducts.length} product(s) with low stock` 
+      : "No products are currently low in stock",
+    count: lowStockProducts.length,
+    data: lowStockProducts,
+  });
+});
