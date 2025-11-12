@@ -47,6 +47,21 @@ const staffSchema = new Schema<IStaff>(
     lockoutUntil: {
       type: Date,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    otpHash: {
+      type: String,
+      select: false,
+    },
+    otpExpiresAt: {
+      type: Date,
+    },
+    lastOTPSentAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -58,13 +73,15 @@ staffSchema.index({ shopId: 1, phoneNumber: 1 }, { unique: true });
 staffSchema.index({ shopId: 1, isActive: 1 });
 staffSchema.index({ shopId: 1, role: 1 });
 
-// Prevent password from being returned in JSON
+// Prevent sensitive fields from being returned in JSON
 staffSchema.set("toJSON", {
   transform: function (doc, ret) {
     const transformed = ret as any;
     delete transformed.passwordHash;
     delete transformed.failedLoginAttempts;
     delete transformed.lockoutUntil;
+    delete transformed.otpHash;
+    delete transformed.otpExpiresAt;
     return transformed;
   },
 });

@@ -8,11 +8,15 @@ export interface IStaff extends Document {
   passwordHash: string;
   role: "cashier" | "manager" | "inventory" | "staff";
   isActive: boolean;
+  isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
   failedLoginAttempts?: number;
   lockoutUntil?: Date;
+  otpHash?: string;
+  otpExpiresAt?: Date;
+  lastOTPSentAt?: Date;
 }
 
 export interface CreateStaffInput {
