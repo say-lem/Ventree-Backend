@@ -1,5 +1,5 @@
-import { NotificationModel, INotification } from '../schemas/notification.schema';
-import { FlattenMaps } from 'mongoose';
+import { NotificationModel, INotification } from '../models/notification.model';
+import { FlattenMaps, Types } from 'mongoose';
 import { VectorClock, VectorClockUtil } from '../utils/vector-clock.util';
 import { NotFoundError } from '../../../shared/utils/AppError';
 
@@ -13,20 +13,19 @@ export interface QueryFilters {
   fromDate?: Date;
   toDate?: Date;
   type?: string;
-  recipientId?: number;
+  recipientId?: string;
   recipientType?: 'owner' | 'staff';
 }
 
 /**
- * Create Notification DTO
+ * Internal Notification Data (for repository operations)
  */
-export interface CreateNotificationDto {
-  shopId: number;
-  ownerProfileId?: number;
-  staffId?: number;
-  inventoryId?: number;
+interface NotificationData {
+  shopId: Types.ObjectId;
+  staffId?: Types.ObjectId;
+  inventoryId?: Types.ObjectId; // ObjectId for production
   message: string;
-  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system' | 'custom';
+  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system_alert' | 'system' | 'custom';
   metadata?: Record<string, any>;
   vectorClock: VectorClock;
 }
@@ -39,7 +38,7 @@ export class NotificationRepository {
   /**
    * Create a new notification
    */
-  async create(data: CreateNotificationDto): Promise<INotification> {
+  async create(data: NotificationData): Promise<INotification> {
     const notification = new NotificationModel(data);
     await notification.save();
     return notification;
@@ -55,15 +54,16 @@ export class NotificationRepository {
   /**
    * Find notifications by shop with filters
    */
-  async findByShop(shopId: number, filters: QueryFilters): Promise<FlattenMaps<INotification>[]> {
+  async findByShop(shopId: Types.ObjectId, filters: QueryFilters): Promise<FlattenMaps<INotification>[]> {
     const query: any = { shopId };
 
     // Filter by recipient
     if (filters.recipientId && filters.recipientType) {
-      if (filters.recipientType === 'owner') {
-        query.ownerProfileId = filters.recipientId;
-      } else if (filters.recipientType === 'staff') {
-        query.staffId = filters.recipientId;
+      if (filters.recipientType === 'staff') {
+        query.staffId = new Types.ObjectId(filters.recipientId);
+      } else if (filters.recipientType === 'owner') {
+        // For owner, show all notifications without staffId (broadcast) or no specific recipient
+        query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
       }
     }
 
@@ -141,16 +141,17 @@ export class NotificationRepository {
   /**
    * Count unread notifications
    */
-  async countUnread(shopId: number, recipientId: number, role: 'ownerProfile' | 'staff'): Promise<number> {
+  async countUnread(shopId: Types.ObjectId, recipientId: string | undefined, role: 'owner' | 'staff'): Promise<number> {
     const query: any = {
       shopId,
       isRead: false,
     };
 
-    if (role === 'ownerProfile') {
-      query.ownerProfileId = recipientId;
-    } else {
-      query.staffId = recipientId;
+    if (role === 'staff' && recipientId) {
+      query.staffId = new Types.ObjectId(recipientId);
+    } else if (role === 'owner') {
+      // Owner sees all notifications or those without specific staff recipient
+      query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
     }
 
     return await NotificationModel.countDocuments(query);
@@ -179,14 +180,14 @@ export class NotificationRepository {
   /**
    * Count total notifications for a shop
    */
-  async countByShop(shopId: number, filters?: QueryFilters): Promise<number> {
+  async countByShop(shopId: Types.ObjectId, filters?: QueryFilters): Promise<number> {
     const query: any = { shopId };
 
     if (filters?.recipientId && filters?.recipientType) {
-      if (filters.recipientType === 'owner') {
-        query.ownerProfileId = filters.recipientId;
-      } else {
-        query.staffId = filters.recipientId;
+      if (filters.recipientType === 'staff') {
+        query.staffId = new Types.ObjectId(filters.recipientId);
+      } else if (filters.recipientType === 'owner') {
+        query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
       }
     }
 
@@ -204,7 +205,7 @@ export class NotificationRepository {
   /**
    * Get notifications created after a specific timestamp (for sync)
    */
-  async getNotificationsSince(shopId: number, since: Date): Promise<FlattenMaps<INotification>[]> {
+  async getNotificationsSince(shopId: Types.ObjectId, since: Date): Promise<FlattenMaps<INotification>[]> {
     return await NotificationModel.find({
       shopId,
       created_at: { $gt: since },
@@ -216,7 +217,8 @@ export class NotificationRepository {
   /**
    * Bulk create notifications (for batch operations)
    */
-  async bulkCreate(notifications: CreateNotificationDto[]): Promise<INotification[]> {
-    return await NotificationModel.insertMany(notifications);
+  async bulkCreate(notifications: NotificationData[]): Promise<INotification[]> {
+    const result = await NotificationModel.insertMany(notifications);
+    return result as INotification[];
   }
 }

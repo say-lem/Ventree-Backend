@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+
+// Load environment variables FIRST before any other imports
+dotenv.config();
+
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -6,10 +11,8 @@ import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { authRouter } from "./modules/auth";
 import { staffRoutes } from "./modules/staff-management";
+import { notificationRoutes } from "./modules/notification";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const app: Application = express();
 
@@ -41,6 +44,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/v1/staff", staffRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // 404 handler (must be after all routes)
 app.use(notFoundHandler);

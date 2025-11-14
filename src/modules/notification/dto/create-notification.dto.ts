@@ -1,4 +1,5 @@
 import { body } from 'express-validator';
+import { Types } from 'mongoose';
 
 /**
  * Create Notification DTO Validation
@@ -7,8 +8,8 @@ export const createNotificationValidation = [
   body('shopId')
     .notEmpty()
     .withMessage('Shop ID is required')
-    .isInt({ min: 1 })
-    .withMessage('Shop ID must be a positive integer'),
+    .isMongoId()
+    .withMessage('Shop ID must be a valid ObjectId'),
 
   body('recipientType')
     .notEmpty()
@@ -18,8 +19,8 @@ export const createNotificationValidation = [
 
   body('recipientId')
     .optional()
-    .isInt({ min: 1 })
-    .withMessage('Recipient ID must be a positive integer'),
+    .isMongoId()
+    .withMessage('Recipient ID must be a valid ObjectId'),
 
   body('message')
     .notEmpty()
@@ -38,7 +39,6 @@ export const createNotificationValidation = [
       'out_of_stock',
       'sale_completed',
       'inventory_updated',
-      'staff_action',
       'staff_created',
       'staff_deleted',
       'expense_added',
@@ -62,11 +62,11 @@ export const createNotificationValidation = [
  * Create Notification Request Body Interface
  */
 export interface CreateNotificationDto {
-  shopId: number;
+  shopId: string;
   recipientType: 'owner' | 'staff' | 'all';
-  recipientId?: number;
-  message: string;
-  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system' | 'custom';
-  inventoryId?: number;
+  recipientId?: string;
+  message?: string;
+  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system' | 'custom';
+  inventoryId?: Types.ObjectId;
   metadata?: Record<string, any>;
 }

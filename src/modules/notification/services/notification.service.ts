@@ -1,37 +1,41 @@
-import { NotificationRepository, CreateNotificationDto, QueryFilters } from '../repositories/notification.repository';
-import { INotification } from '../schemas/notification.schema';
+import { NotificationRepository, QueryFilters } from '../repositories/notification.repository';
+import { INotification } from '../models/notification.model';
 import { VectorClockUtil, VectorClock } from '../utils/vector-clock.util';
 import { NotificationTemplateUtil } from '../utils/notification-template.util';
 import { NotificationType, RecipientType } from '../types/notification-types';
-import { MockAuthContext } from '../interfaces/mock-auth.interface';
+import { TokenPayload } from '../../../shared/middleware/auth.middleware';
 import { BadRequestError, NotFoundError, AuthorizationError } from '../../../shared/utils/AppError';
+import { Types } from 'mongoose';
+import { StaffService } from '../../staff-management/services/staff.service';
+import { StaffRepository } from '../../staff-management/repositories/staff.repository';
+import { NotificationEmitter } from '../emitters/notification.emitter';
 
 /**
  * Create Notification Input
  */
 export interface CreateNotificationInput {
-  shopId: number;
+  shopId: string;
   recipientType: RecipientType;
-  recipientId?: number;
+  recipientId?: string;
   message: string;
   type: NotificationType;
-  inventoryId?: number;
+  inventoryId?:string; // Accept both number (for testing) and string/ObjectId (for production)
   metadata?: Record<string, any>;
-  authContext: MockAuthContext;
+  authContext: TokenPayload;
 }
 
 /**
  * Query Notifications Input
  */
 export interface QueryNotificationsInput {
-  shopId: number;
+  shopId: string;
   unreadOnly?: boolean;
   limit?: number;
   offset?: number;
   fromDate?: Date;
   toDate?: Date;
   type?: string;
-  authContext: MockAuthContext;
+  authContext: TokenPayload;
 }
 
 /**
@@ -39,7 +43,7 @@ export interface QueryNotificationsInput {
  */
 export interface MarkReadInput {
   notificationIds: string[];
-  authContext: MockAuthContext;
+  authContext: TokenPayload;
 }
 
 /**
@@ -48,9 +52,27 @@ export interface MarkReadInput {
  */
 export class NotificationService {
   private repository: NotificationRepository;
+  private staffService: StaffService;
+  private staffRepository: StaffRepository;
+  private emitter: NotificationEmitter | null;
 
-  constructor(repository?: NotificationRepository) {
+  constructor(
+    repository?: NotificationRepository,
+    staffService?: StaffService,
+    staffRepository?: StaffRepository,
+    emitter?: NotificationEmitter | null
+  ) {
     this.repository = repository || new NotificationRepository();
+    this.staffService = staffService || new StaffService();
+    this.staffRepository = staffRepository || new StaffRepository();
+    this.emitter = emitter !== undefined ? emitter : null;
+  }
+
+  /**
+   * Set the notification emitter (for Redis pub/sub)
+   */
+  setEmitter(emitter: NotificationEmitter): void {
+    this.emitter = emitter;
   }
 
   /**
@@ -59,34 +81,57 @@ export class NotificationService {
   async createNotification(input: CreateNotificationInput): Promise<INotification> {
     const { shopId, recipientType, recipientId, message, type, inventoryId, metadata, authContext } = input;
 
-    // Validate shop ownership (mock - will be replaced with real ShopService)
+    // Validate shop access
     await this.validateShopAccess(shopId, authContext);
 
-    // Initialize vector clock with replica ID
-    const vectorClock = VectorClockUtil.init(authContext.replicaId);
+    // Initialize vector clock with shop ID as replica ID
+    const vectorClock = VectorClockUtil.init(shopId);
 
     // Determine recipients
-    let ownerProfileId: number | undefined;
-    let staffId: number | undefined;
+    let staffId: Types.ObjectId | undefined;
 
-    if (recipientType === 'owner') {
-      ownerProfileId = recipientId;
-    } else if (recipientType === 'staff') {
-      staffId = recipientId;
-      // Validate staff belongs to shop (mock)
-      if (staffId !== undefined) {
-        await this.validateStaffBelongsToShop(staffId, shopId);
+    if (recipientType === 'staff') {
+      if (!recipientId) {
+        throw new BadRequestError('Recipient ID is required for staff notifications');
       }
+      staffId = new Types.ObjectId(recipientId);
+      // Validate staff belongs to shop
+      await this.validateStaffBelongsToShop(recipientId, shopId);
     } else if (recipientType === 'all') {
       // Broadcast to all - will create multiple notifications
       return await this.createBroadcastNotification(input);
     }
+    // For 'owner' recipientType, staffId remains undefined (notification for owner)
 
-    const notificationData: CreateNotificationDto = {
-      shopId,
-      ownerProfileId,
+    // Convert inventoryId to ObjectId
+    //  inventoryId should be a valid ObjectId string
+    let inventoryIdObj: Types.ObjectId | undefined;
+    if (inventoryId !== undefined) {
+      if (typeof inventoryId === 'number') {
+    
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('[NotificationService] Received numeric inventoryId in production. Skipping to avoid incorrect references.');
+          inventoryIdObj = undefined;
+        } else {
+          
+          inventoryIdObj = new Types.ObjectId();
+          console.warn('[NotificationService] Testing mode: Created new ObjectId for numeric inventoryId. In production, pass ObjectId strings.');
+        }
+      } else if (typeof inventoryId === 'string') {
+        // Validate it's a valid ObjectId format
+        if (Types.ObjectId.isValid(inventoryId)) {
+          inventoryIdObj = new Types.ObjectId(inventoryId);
+        } else {
+          console.warn(`[NotificationService] Invalid ObjectId format: ${inventoryId}. Skipping inventoryId.`);
+          inventoryIdObj = undefined;
+        }
+      }
+    }
+
+    const notificationData = {
+      shopId: new Types.ObjectId(shopId),
       staffId,
-      inventoryId,
+      inventoryId: inventoryIdObj,
       message,
       type,
       metadata,
@@ -95,30 +140,99 @@ export class NotificationService {
 
     const notification = await this.repository.create(notificationData);
 
-    // TODO: Emit via WebSocket/Redis when available
-    // await this.emitNotification(notification);
+    // Emit via Redis if emitter is available
+    await this.emitNotification(notification, shopId, recipientType, staffId);
 
     return notification;
   }
 
   /**
-   * Create broadcast notification (to all users in shop)
+   * Create broadcast notification (to owner only)
+   * 
    */
   private async createBroadcastNotification(input: CreateNotificationInput): Promise<INotification> {
-    // For now, create a single notification without specific recipient
-    // In production, this would create multiple notifications or use a broadcast flag
-    const vectorClock = VectorClockUtil.init(input.authContext.replicaId);
+    const { shopId, message, type, inventoryId, metadata } = input;
 
-    const notificationData: CreateNotificationDto = {
-      shopId: input.shopId,
-      message: input.message,
-      type: input.type,
-      inventoryId: input.inventoryId,
-      metadata: input.metadata,
+    const vectorClock = VectorClockUtil.init(shopId);
+
+    // Convert inventoryId to ObjectId
+    // In production, inventoryId should be a valid ObjectId string
+    let inventoryIdObj: Types.ObjectId | undefined;
+    if (inventoryId !== undefined) {
+      if (typeof inventoryId === 'number') {
+        // Testing mode: log warning and skip inventoryId to avoid incorrect references
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('[NotificationService] Received numeric inventoryId in production. Skipping to avoid incorrect references.');
+          inventoryIdObj = undefined;
+        } else {
+          // Development/testing: create a new ObjectId (for testing only)
+          inventoryIdObj = new Types.ObjectId();
+          console.warn('[NotificationService] Testing mode: Created new ObjectId for numeric inventoryId. In production, pass ObjectId strings.');
+        }
+      } else if (typeof inventoryId === 'string') {
+        // Validate it's a valid ObjectId format
+        if (Types.ObjectId.isValid(inventoryId)) {
+          inventoryIdObj = new Types.ObjectId(inventoryId);
+        } else {
+          console.warn(`[NotificationService] Invalid ObjectId format: ${inventoryId}. Skipping inventoryId.`);
+          inventoryIdObj = undefined;
+        }
+      }
+    }
+
+    const notificationData = {
+      shopId: new Types.ObjectId(shopId),
+      inventoryId: inventoryIdObj,
+      message,
+      type,
+      metadata,
       vectorClock,
     };
 
-    return await this.repository.create(notificationData);
+    const notification = await this.repository.create(notificationData);
+
+    // Emit broadcast notification via Redis
+    if (this.emitter) {
+      try {
+        await this.emitter.emitToShop(shopId, notification);
+      } catch (error) {
+        console.error('[NotificationService] Failed to emit broadcast notification:', error);
+      }
+    }
+
+    return notification;
+  }
+
+  /**
+   * Emit notification via Redis pub/sub
+   */
+  private async emitNotification(
+    notification: INotification,
+    shopId: string,
+    recipientType: RecipientType,
+    staffId?: Types.ObjectId
+  ): Promise<void> {
+    if (!this.emitter) {
+      console.log('[NotificationService] Emitter not configured, skipping Redis publish');
+      return; // Emitter not configured, skip
+    }
+
+    try {
+      if (recipientType === 'all') {
+        // Broadcast to entire shop
+        await this.emitter.emitToShop(shopId, notification);
+      } else if (recipientType === 'staff' && staffId) {
+        // Emit to specific staff member
+        await this.emitter.emitToStaff(shopId, staffId.toString(), notification);
+      } else if (recipientType === 'owner') {
+        // Emit to owner - use shop channel as fallback since ownerProfileId may not be in metadata
+        // The shop channel will be received by all subscribers to that shop
+        await this.emitter.emitToShop(shopId, notification);
+      }
+    } catch (error) {
+      // Log but don't fail notification creation
+      console.error('[NotificationService] Failed to emit notification via Redis:', error);
+    }
   }
 
   /**
@@ -138,12 +252,12 @@ export class NotificationService {
     // Build query filters
     const queryFilters: QueryFilters = {
       ...filters,
-      recipientId: authContext.profileId,
-      recipientType: authContext.role === 'ownerProfile' ? 'owner' : 'staff',
+      recipientId: authContext.role === 'owner' ? undefined : authContext.profileId,
+      recipientType: authContext.role,
     };
 
-    const notifications = await this.repository.findByShop(shopId, queryFilters);
-    const total = await this.repository.countByShop(shopId, queryFilters);
+    const notifications = await this.repository.findByShop(new Types.ObjectId(shopId), queryFilters) as unknown as INotification[];
+    const total = await this.repository.countByShop(new Types.ObjectId(shopId), queryFilters);
 
     const limit = filters.limit || 20;
     const offset = filters.offset || 0;
@@ -161,7 +275,7 @@ export class NotificationService {
   /**
    * Get notification by ID
    */
-  async getNotificationById(id: string, authContext: MockAuthContext): Promise<INotification> {
+  async getNotificationById(id: string, authContext: TokenPayload): Promise<INotification> {
     const notification = await this.repository.findById(id);
 
     if (!notification) {
@@ -177,7 +291,7 @@ export class NotificationService {
   /**
    * Mark notification as read
    */
-  async markAsRead(id: string, authContext: MockAuthContext): Promise<INotification> {
+  async markAsRead(id: string, authContext: TokenPayload): Promise<INotification> {
     const notification = await this.repository.findById(id);
 
     if (!notification) {
@@ -190,7 +304,7 @@ export class NotificationService {
     // Increment vector clock
     const newVectorClock = VectorClockUtil.increment(
       notification.vectorClock,
-      authContext.replicaId
+      authContext.shopId
     );
 
     return await this.repository.markAsRead(id, newVectorClock);
@@ -211,8 +325,8 @@ export class NotificationService {
     }
 
     // Create merged vector clock
-    const vectorClock = VectorClockUtil.init(authContext.replicaId);
-    const incrementedClock = VectorClockUtil.increment(vectorClock, authContext.replicaId);
+    const vectorClock = VectorClockUtil.init(authContext.shopId);
+    const incrementedClock = VectorClockUtil.increment(vectorClock, authContext.shopId);
 
     return await this.repository.bulkMarkAsRead(notificationIds, incrementedClock);
   }
@@ -220,12 +334,12 @@ export class NotificationService {
   /**
    * Get unread count
    */
-  async getUnreadCount(shopId: number, authContext: MockAuthContext): Promise<number> {
+  async getUnreadCount(shopId: string, authContext: TokenPayload): Promise<number> {
     await this.validateShopAccess(shopId, authContext);
 
     return await this.repository.countUnread(
-      shopId,
-      authContext.profileId,
+      new Types.ObjectId(shopId),
+      authContext.role === 'owner' ? undefined : authContext.profileId,
       authContext.role
     );
   }
@@ -233,7 +347,7 @@ export class NotificationService {
   /**
    * Delete notification
    */
-  async deleteNotification(id: string, authContext: MockAuthContext): Promise<void> {
+  async deleteNotification(id: string, authContext: TokenPayload): Promise<void> {
     const notification = await this.repository.findById(id);
 
     if (!notification) {
@@ -242,8 +356,10 @@ export class NotificationService {
 
     // Only owner can delete shop-wide notifications
     // Staff can delete their own notifications
-    if (authContext.role === 'staff' && notification.staffId !== authContext.profileId) {
-      throw new AuthorizationError('You can only delete your own notifications');
+    if (authContext.role === 'staff') {
+      if (!notification.staffId || notification.staffId.toString() !== authContext.profileId) {
+        throw new AuthorizationError('You can only delete your own notifications');
+      }
     }
 
     await this.repository.delete(id);
@@ -253,12 +369,12 @@ export class NotificationService {
    * Create notification from template
    */
   async createFromTemplate(
-    shopId: number,
+    shopId: string,
     type: NotificationType,
     data: any,
     recipientType: RecipientType,
-    recipientId: number | undefined,
-    authContext: MockAuthContext
+    recipientId: string | undefined,
+    authContext: TokenPayload
   ): Promise<INotification> {
     const message = NotificationTemplateUtil.generate(type, data);
 
@@ -276,27 +392,39 @@ export class NotificationService {
   /**
    * Get notifications since timestamp (for sync)
    */
-  async getNotificationsSince(shopId: number, since: Date, authContext: MockAuthContext): Promise<INotification[]> {
+  async getNotificationsSince(shopId: string, since: Date, authContext: TokenPayload): Promise<INotification[]> {
     await this.validateShopAccess(shopId, authContext);
-    return await this.repository.getNotificationsSince(shopId, since);
+    return await this.repository.getNotificationsSince(new Types.ObjectId(shopId), since) as unknown as INotification[];
   }
 
   /**
-   * Validate shop access (mock implementation)
+   * Validate shop access
    */
-  private async validateShopAccess(shopId: number, authContext: MockAuthContext): Promise<void> {
+  private async validateShopAccess(shopId: string, authContext: TokenPayload): Promise<void> {
     if (authContext.shopId !== shopId) {
       throw new AuthorizationError('You do not have access to this shop');
     }
-    // TODO: Replace with real ShopService validation
   }
 
   /**
-   * Validate staff belongs to shop (mock implementation)
+   * Validate staff belongs to shop
    */
-  private async validateStaffBelongsToShop(staffId: number, shopId: number): Promise<void> {
-    // TODO: Replace with real StaffService validation
-    // For now, assume valid
+  private async validateStaffBelongsToShop(staffId: string, shopId: string): Promise<void> {
+    try {
+      const staff = await this.staffService.getStaffById(staffId, shopId, {
+        requestId: 'notification-validation',
+        userId: shopId,
+        userRole: 'owner',
+        userShopId: shopId,
+        ip: 'internal',
+      });
+      
+      if (staff.shopId.toString() !== shopId) {
+        throw new AuthorizationError('Staff does not belong to this shop');
+      }
+    } catch (error) {
+      throw new AuthorizationError('Invalid staff member');
+    }
   }
 
   /**
@@ -304,21 +432,21 @@ export class NotificationService {
    */
   private async validateNotificationAccess(
     notification: INotification,
-    authContext: MockAuthContext
+    authContext: TokenPayload
   ): Promise<void> {
     // Check if user has access to this notification
-    if (notification.shopId !== authContext.shopId) {
+    if (notification.shopId.toString() !== authContext.shopId) {
       throw new AuthorizationError('You do not have access to this notification');
     }
 
-    if (authContext.role === 'ownerProfile') {
+    if (authContext.role === 'owner') {
       // Owner can access all notifications in their shop
       return;
     }
 
     if (authContext.role === 'staff') {
       // Staff can only access their own notifications
-      if (notification.staffId !== authContext.profileId) {
+      if (!notification.staffId || notification.staffId.toString() !== authContext.profileId) {
         throw new AuthorizationError('You can only access your own notifications');
       }
     }

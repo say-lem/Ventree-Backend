@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { NotificationController } from '../controllers/notification.controller';
-import { mockAuthMiddleware, requireAuth } from '../middleware/mock-auth.middleware';
+import { authenticate } from '../../../shared/middleware/auth.middleware';
 import { checkNotificationPermission } from '../middleware/check-permissions.middleware';
 import { createNotificationValidation } from '../dto/create-notification.dto';
 import { queryNotificationsValidation } from '../dto/query-notifications.dto';
@@ -10,9 +10,8 @@ import { query } from 'express-validator';
 const router = Router();
 const notificationController = new NotificationController();
 
-// All routes require authentication (mocked for now)
-router.use(mockAuthMiddleware);
-router.use(requireAuth);
+// All routes require authentication
+router.use(authenticate);
 
 /**
  * POST /api/v1/notifications

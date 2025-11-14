@@ -1,9 +1,11 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { validationResult } from 'express-validator';
 import { NotificationService } from '../services/notification.service';
+import { getNotificationService } from '../services/notification.service.instance';
 import { NotificationType } from '../types/notification-types';
 import { asyncHandler } from '../../../shared/utils/asyncHandler';
 import { ValidationError } from '../../../shared/utils/AppError';
+import { AuthenticatedRequest } from '../../../shared/middleware/auth.middleware';
 
 /**
  * Notification Controller
@@ -13,14 +15,15 @@ export class NotificationController {
   private notificationService: NotificationService;
 
   constructor(notificationService?: NotificationService) {
-    this.notificationService = notificationService || new NotificationService();
+    // Use provided service or get singleton instance with Redis emitter
+    this.notificationService = notificationService || getNotificationService();
   }
 
   /**
    * Create a new notification
    * POST /api/v1/notifications
    */
-  create = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  create = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', errors.array());
@@ -49,7 +52,7 @@ export class NotificationController {
    * Get all notifications for the authenticated user
    * GET /api/v1/notifications
    */
-  getAll = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  getAll = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', errors.array());
@@ -58,7 +61,7 @@ export class NotificationController {
     const { shopId, unreadOnly, limit, offset, fromDate, toDate, type } = req.query;
 
     const result = await this.notificationService.getNotifications({
-      shopId: parseInt(shopId as string),
+      shopId: shopId as string,
       unreadOnly: unreadOnly === 'true',
       limit: limit ? parseInt(limit as string) : undefined,
       offset: offset ? parseInt(offset as string) : undefined,
@@ -84,7 +87,7 @@ export class NotificationController {
    * Get notification by ID
    * GET /api/v1/notifications/:id
    */
-  getById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  getById = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
     const notification = await this.notificationService.getNotificationById(id, req.user!);
@@ -99,7 +102,7 @@ export class NotificationController {
    * Get unread notification count
    * GET /api/v1/notifications/unread-count
    */
-  getUnreadCount = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  getUnreadCount = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', errors.array());
@@ -108,7 +111,7 @@ export class NotificationController {
     const { shopId } = req.query;
 
     const count = await this.notificationService.getUnreadCount(
-      parseInt(shopId as string),
+      shopId as string,
       req.user!
     );
 
@@ -122,7 +125,7 @@ export class NotificationController {
    * Mark notification as read
    * PATCH /api/v1/notifications/:id/read
    */
-  markAsRead = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  markAsRead = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
     const notification = await this.notificationService.markAsRead(id, req.user!);
@@ -137,7 +140,7 @@ export class NotificationController {
    * Bulk mark notifications as read
    * PATCH /api/v1/notifications/mark-read
    */
-  bulkMarkAsRead = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  bulkMarkAsRead = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', errors.array());
@@ -161,7 +164,7 @@ export class NotificationController {
    * Delete notification
    * DELETE /api/v1/notifications/:id
    */
-  delete = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  delete = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
     await this.notificationService.deleteNotification(id, req.user!);

@@ -1,15 +1,5 @@
-import { INotification } from '../schemas/notification.schema';
-
-/**
- * Redis Client Interface (mock for now)
- * Will be replaced with actual Redis client when available
- */
-export interface RedisClient {
-  publish(channel: string, message: string): Promise<number>;
-  subscribe(channel: string): Promise<void>;
-  on(event: string, callback: (...args: any[]) => void): void;
-  unsubscribe(channel?: string): Promise<void>;
-}
+import Redis from 'ioredis';
+import { INotification } from '../models/notification.model';
 
 /**
  * Notification Emitter
@@ -17,27 +7,66 @@ export interface RedisClient {
  * Supports cross-instance broadcasting for horizontal scaling
  */
 export class NotificationEmitter {
-  private redisPublisher: RedisClient;
-  private redisSubscriber: RedisClient;
+  private redisPublisher: Redis;
+  private redisSubscriber: Redis;
   private subscriptions: Map<string, Set<(notification: INotification) => void>>;
 
-  constructor(redisPublisher: RedisClient, redisSubscriber: RedisClient) {
+  constructor(redisPublisher: Redis, redisSubscriber: Redis) {
     this.redisPublisher = redisPublisher;
     this.redisSubscriber = redisSubscriber;
     this.subscriptions = new Map();
     this.setupSubscriber();
+
+    // Automatically subscribe to common notification channels when emitter is created.
+    // These subscriptions can be used by the WebSocket layer or other listeners.
+    this.initializeDefaultSubscriptions();
+  }
+
+  /**
+   * Initialize default Redis subscriptions so notifications are forwarded
+   * to local consumers without requiring manual subscription setup.
+   */
+  private initializeDefaultSubscriptions(): void {
+    // Listen for all shop notifications
+    this.redisSubscriber.psubscribe('notifications:shop:*').catch((error) => {
+      console.error('[NotificationEmitter] Failed to psubscribe to shop notifications:', error);
+    });
+
+    // Listen for specific user/staff/owner notifications
+    this.redisSubscriber.psubscribe('notifications:shop:*:staff:*').catch((error) => {
+      console.error('[NotificationEmitter] Failed to psubscribe to staff notifications:', error);
+    });
+
+    this.redisSubscriber.psubscribe('notifications:shop:*:owner:*').catch((error) => {
+      console.error('[NotificationEmitter] Failed to psubscribe to owner notifications:', error);
+    });
+
+    this.redisSubscriber.psubscribe('notifications:user:*').catch((error) => {
+      console.error('[NotificationEmitter] Failed to psubscribe to user notifications:', error);
+    });
   }
 
   /**
    * Setup Redis subscriber for incoming notifications
    */
   private setupSubscriber(): void {
+    // ioredis uses 'message' event with pattern matching
     this.redisSubscriber.on('message', (channel: string, message: string) => {
       try {
         const notification: INotification = JSON.parse(message);
         this.handleIncomingNotification(channel, notification);
       } catch (error) {
-        // Error parsing notification
+        console.error('[NotificationEmitter] Error parsing notification from Redis:', error);
+      }
+    });
+
+    // Handle PMESSAGE for pattern subscriptions (if needed in future)
+    this.redisSubscriber.on('pmessage', (pattern: string, channel: string, message: string) => {
+      try {
+        const notification: INotification = JSON.parse(message);
+        this.handleIncomingNotification(channel, notification);
+      } catch (error) {
+        console.error('[NotificationEmitter] Error parsing notification from Redis (pattern):', error);
       }
     });
   }
@@ -62,12 +91,13 @@ export class NotificationEmitter {
    * Publish notification to shop channel
    * All users in the shop will receive this notification
    */
-  async emitToShop(shopId: number, notification: INotification): Promise<void> {
+  async emitToShop(shopId: string, notification: INotification): Promise<void> {
     const channel = `notifications:shop:${shopId}`;
     const message = JSON.stringify(notification);
 
     try {
       await this.redisPublisher.publish(channel, message);
+      console.log(`[NotificationEmitter] Published to shop channel: ${channel}`);
     } catch (error) {
       // Handle publish error with exponential backoff
       await this.retryPublish(channel, message, 3);
@@ -78,12 +108,13 @@ export class NotificationEmitter {
    * Publish notification to specific user
    * Only the target user will receive this notification
    */
-  async emitToUser(userId: number, notification: INotification): Promise<void> {
+  async emitToUser(userId: string, notification: INotification): Promise<void> {
     const channel = `notifications:user:${userId}`;
     const message = JSON.stringify(notification);
 
     try {
       await this.redisPublisher.publish(channel, message);
+      console.log(`[NotificationEmitter] Published to user channel: ${channel}`);
     } catch (error) {
       // Handle publish error with exponential backoff
       await this.retryPublish(channel, message, 3);
@@ -93,12 +124,13 @@ export class NotificationEmitter {
   /**
    * Publish notification to staff member
    */
-  async emitToStaff(shopId: number, staffId: number, notification: INotification): Promise<void> {
+  async emitToStaff(shopId: string, staffId: string, notification: INotification): Promise<void> {
     const channel = `notifications:shop:${shopId}:staff:${staffId}`;
     const message = JSON.stringify(notification);
 
     try {
       await this.redisPublisher.publish(channel, message);
+      console.log(`[NotificationEmitter] Published to staff channel: ${channel}`);
     } catch (error) {
       // Handle publish error with exponential backoff
       await this.retryPublish(channel, message, 3);
@@ -108,12 +140,13 @@ export class NotificationEmitter {
   /**
    * Publish notification to owner
    */
-  async emitToOwner(shopId: number, ownerProfileId: number, notification: INotification): Promise<void> {
+  async emitToOwner(shopId: string, ownerProfileId: string, notification: INotification): Promise<void> {
     const channel = `notifications:shop:${shopId}:owner:${ownerProfileId}`;
     const message = JSON.stringify(notification);
 
     try {
       await this.redisPublisher.publish(channel, message);
+      console.log(`[NotificationEmitter] Published to owner channel: ${channel}`);
     } catch (error) {
       // Handle publish error with exponential backoff
       await this.retryPublish(channel, message, 3);
@@ -123,7 +156,7 @@ export class NotificationEmitter {
   /**
    * Subscribe to shop notifications
    */
-  async subscribeToShop(shopId: number, callback: (notification: INotification) => void): Promise<void> {
+  async subscribeToShop(shopId: string, callback: (notification: INotification) => void): Promise<void> {
     const channel = `notifications:shop:${shopId}`;
     await this.subscribe(channel, callback);
   }
@@ -131,7 +164,7 @@ export class NotificationEmitter {
   /**
    * Subscribe to user notifications
    */
-  async subscribeToUser(userId: number, callback: (notification: INotification) => void): Promise<void> {
+  async subscribeToUser(userId: string, callback: (notification: INotification) => void): Promise<void> {
     const channel = `notifications:user:${userId}`;
     await this.subscribe(channel, callback);
   }
@@ -140,8 +173,8 @@ export class NotificationEmitter {
    * Subscribe to staff notifications
    */
   async subscribeToStaff(
-    shopId: number,
-    staffId: number,
+    shopId: string,
+    staffId: string,
     callback: (notification: INotification) => void
   ): Promise<void> {
     const channel = `notifications:shop:${shopId}:staff:${staffId}`;
@@ -152,8 +185,8 @@ export class NotificationEmitter {
    * Subscribe to owner notifications
    */
   async subscribeToOwner(
-    shopId: number,
-    ownerProfileId: number,
+    shopId: string,
+    ownerProfileId: string,
     callback: (notification: INotification) => void
   ): Promise<void> {
     const channel = `notifications:shop:${shopId}:owner:${ownerProfileId}`;
@@ -210,11 +243,11 @@ export class NotificationEmitter {
       } catch (error) {
         retries++;
         delay *= 2; // Exponential backoff
+        if (retries >= maxRetries) {
+          console.error(`[NotificationEmitter] Failed to publish to ${channel} after ${maxRetries} retries:`, error);
+        }
       }
     }
-
-    // Max retries reached, log error
-    // TODO: Add proper logging
   }
 
   /**

@@ -12,8 +12,8 @@ export { NotificationService } from './services/notification.service';
 // Repository
 export { NotificationRepository } from './repositories/notification.repository';
 
-// Schemas and Models
-export { NotificationModel, INotification } from './schemas/notification.schema';
+// Models
+export { NotificationModel, INotification } from './models/notification.model';
 
 // Types
 export * from './types/notification-types';
@@ -22,12 +22,11 @@ export * from './types/notification-types';
 export { VectorClockUtil, VectorClock } from './utils/vector-clock.util';
 export { NotificationTemplateUtil } from './utils/notification-template.util';
 
-// Interfaces
-export * from './interfaces/mock-auth.interface';
-export * from './interfaces/mock-services.interface';
+// Auth types (re-export from shared middleware)
+export { TokenPayload, AuthenticatedRequest } from '../../shared/middleware/auth.middleware';
 
 // Emitter and WebSocket
-export { NotificationEmitter, RedisClient } from './emitters/notification.emitter';
+export { NotificationEmitter } from './emitters/notification.emitter';
 export { NotificationWebSocketHandler, WebSocket } from './websockets/notification.websocket';
 
 // Auto Triggers

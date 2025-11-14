@@ -1,4 +1,4 @@
-import { INotification } from '../schemas/notification.schema';
+import { INotification } from '../models/notification.model';
 
 /**
  * WebSocket Interface (stub for now)

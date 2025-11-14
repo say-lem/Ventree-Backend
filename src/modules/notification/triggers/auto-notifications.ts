@@ -1,27 +1,62 @@
 import { NotificationService } from '../services/notification.service';
+import { getNotificationService } from '../services/notification.service.instance';
 import { NotificationType } from '../types/notification-types';
 import { NotificationTemplateUtil } from '../utils/notification-template.util';
-import { MockAuthContext } from '../interfaces/mock-auth.interface';
+import { TokenPayload } from '../../../shared/middleware/auth.middleware';
 
 /**
  * Auto Notification Triggers
  * Stubs for automatic notifications that will be integrated with other services
  */
 export class AutoNotificationTriggers {
-  private static notificationService = new NotificationService();
+  private static notificationService: NotificationService | null = null;
 
   /**
-   * Trigger low stock notification
+   * Get notification service instance (singleton with Redis emitter)
+   */
+  private static getNotificationService(): NotificationService {
+    if (!this.notificationService) {
+      this.notificationService = getNotificationService();
+    }
+    return this.notificationService;
+  }
+  private static SYSTEM_PROFILE_PREFIX = 'system';
+
+  private static resolveAuthContext(shopId: string, authContext?: TokenPayload): TokenPayload {
+    if (authContext) {
+      if (authContext.shopId !== shopId) {
+        console.warn(
+          '[AutoNotificationTriggers] Provided auth context does not match shop. Falling back to system context.',
+          {
+            expectedShopId: shopId,
+            providedShopId: authContext.shopId,
+          }
+        );
+      } else {
+        return authContext;
+      }
+    }
+
+    return {
+      shopId,
+      role: 'owner',
+      profileId: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,
+    };
+  }
+
+  /**
+   * Trigger low sto
+   * ck notification
    * TODO: Integrate with InventoryService
    */
   static async onLowStock(
     inventoryId: number,
-    shopId: number,
+    shopId: string,
     productName: string,
     quantity: number,
     unit: string,
     threshold: number,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -34,17 +69,23 @@ export class AutoNotificationTriggers {
 
       const message = NotificationTemplateUtil.generate(NotificationType.LOW_STOCK, data);
 
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'owner',
         message,
         type: NotificationType.LOW_STOCK,
         inventoryId,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw to prevent blocking inventory operations
+      console.error('[AutoNotificationTriggers.onLowStock] Failed to create notification', {
+        shopId,
+        inventoryId,
+        error,
+      });
     }
   }
 
@@ -54,9 +95,9 @@ export class AutoNotificationTriggers {
    */
   static async onOutOfStock(
     inventoryId: number,
-    shopId: number,
+    shopId: string,
     productName: string,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -66,17 +107,23 @@ export class AutoNotificationTriggers {
 
       const message = NotificationTemplateUtil.generate(NotificationType.OUT_OF_STOCK, data);
 
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'all',
         message,
         type: NotificationType.OUT_OF_STOCK,
         inventoryId,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onOutOfStock] Failed to create notification', {
+        shopId,
+        inventoryId,
+        error,
+      });
     }
   }
 
@@ -86,13 +133,13 @@ export class AutoNotificationTriggers {
    */
   static async onSaleCompleted(
     saleId: string,
-    shopId: number,
-    staffId: number,
+    shopId: string,
+    staffId: string,
     itemCount: number,
     total: number,
     currency: string,
     staffName: string,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -106,16 +153,22 @@ export class AutoNotificationTriggers {
       const message = NotificationTemplateUtil.generate(NotificationType.SALE_COMPLETED, data);
 
       // Notify owner about the sale
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'owner',
         message,
         type: NotificationType.SALE_COMPLETED,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onSaleCompleted] Failed to create notification', {
+        shopId,
+        saleId,
+        error,
+      });
     }
   }
 
@@ -125,13 +178,13 @@ export class AutoNotificationTriggers {
    */
   static async onInventoryUpdated(
     inventoryId: number,
-    shopId: number,
+    shopId: string,
     productName: string,
     oldQuantity: number,
     newQuantity: number,
     unit: string,
     updatedBy: string,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -146,17 +199,23 @@ export class AutoNotificationTriggers {
       const message = NotificationTemplateUtil.generate(NotificationType.INVENTORY_UPDATED, data);
 
       // Notify owner about inventory changes
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'owner',
         message,
         type: NotificationType.INVENTORY_UPDATED,
         inventoryId,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onInventoryUpdated] Failed to create notification', {
+        shopId,
+        inventoryId,
+        error,
+      });
     }
   }
 
@@ -165,10 +224,10 @@ export class AutoNotificationTriggers {
    * TODO: Integrate with StaffService
    */
   static async onStaffCreated(
-    shopId: number,
+    shopId: string,
     staffName: string,
     performedBy: string,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -179,16 +238,22 @@ export class AutoNotificationTriggers {
 
       const message = NotificationTemplateUtil.generate(NotificationType.STAFF_CREATED, data);
 
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'owner',
         message,
         type: NotificationType.STAFF_CREATED,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onStaffCreated] Failed to create notification', {
+        shopId,
+        staffName,
+        error,
+      });
     }
   }
 
@@ -197,10 +262,10 @@ export class AutoNotificationTriggers {
    * TODO: Integrate with StaffService
    */
   static async onStaffDeleted(
-    shopId: number,
+    shopId: string,
     staffName: string,
     performedBy: string,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -211,16 +276,22 @@ export class AutoNotificationTriggers {
 
       const message = NotificationTemplateUtil.generate(NotificationType.STAFF_DELETED, data);
 
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'owner',
         message,
         type: NotificationType.STAFF_DELETED,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onStaffDeleted] Failed to create notification', {
+        shopId,
+        staffName,
+        error,
+      });
     }
   }
 
@@ -229,11 +300,11 @@ export class AutoNotificationTriggers {
    * Can be used for general system notifications
    */
   static async onSystemAlert(
-    shopId: number,
+    shopId: string,
     alertType: 'warning' | 'error' | 'info',
     message: string,
     details: string | undefined,
-    authContext: MockAuthContext
+    authContext?: TokenPayload
   ): Promise<void> {
     try {
       const data = {
@@ -244,16 +315,22 @@ export class AutoNotificationTriggers {
 
       const notificationMessage = NotificationTemplateUtil.generate(NotificationType.SYSTEM_ALERT, data);
 
-      await this.notificationService.createNotification({
+      const context = this.resolveAuthContext(shopId, authContext);
+
+      await this.getNotificationService().createNotification({
         shopId,
         recipientType: 'all',
         message: notificationMessage,
         type: NotificationType.SYSTEM_ALERT,
         metadata: data,
-        authContext,
+        authContext: context,
       });
     } catch (error) {
-      // Log error but don't throw
+      console.error('[AutoNotificationTriggers.onSystemAlert] Failed to create notification', {
+        shopId,
+        alertType,
+        error,
+      });
     }
   }
 }
