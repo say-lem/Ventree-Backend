@@ -17,10 +17,10 @@ if (!MONGO_URI) {
  * Run with: npx ts-node scripts/test-notification-triggers.ts
  */
 
-const SHOP_ID = '6915f51e6ddd4cecd38e7393'; // Replace with your actual shopId
-const OWNER_PROFILE_ID = 'owner'; // Replace with your actual profileId
+const SHOP_ID = '6915f51e6ddd4cecd38e7393'; 
+const OWNER_PROFILE_ID = 'owner'; 
 
-// Mock auth context (owner)
+// auth context (owner)
 const authContext = {
   shopId: SHOP_ID,
   role: 'owner' as const,
@@ -35,7 +35,7 @@ async function testAllTriggers() {
     // Test 1: Low Stock Notification
     console.log('1️⃣ Testing onLowStock...');
     await AutoNotificationTriggers.onLowStock(
-      1001, // inventoryId (will be converted to ObjectId by service)
+      1001, // inventoryId 
       SHOP_ID,
       'Premium Widget',
       5, // quantity
