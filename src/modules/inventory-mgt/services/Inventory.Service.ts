@@ -121,3 +121,13 @@ interface StockUpdateData {
 
     return lowStockProducts;
   }
+
+  //filter products by name
+  export const filterProductsByName = async (shopId: string, nameQuery: string) => {
+    const products = await Inventory.find({ 
+      shopId,
+      name: { $regex: new RegExp(nameQuery, 'i') } 
+    });
+
+    return products;
+  }

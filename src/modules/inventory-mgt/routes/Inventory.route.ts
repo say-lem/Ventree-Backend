@@ -6,6 +6,7 @@ import {
   deleteProduct,
   stockIn,
   stockOut,
+  filterProductsByName
 } from "../controllers/Inventory.Controller";
 import { authenticate, ownerOnly } from "../../../shared/middleware/auth.middleware";
 
@@ -17,4 +18,7 @@ router.post("/:shopId/inventory/stock-in",  authenticate, stockIn);
 router.post("/:shopId/inventory/stock-out",  authenticate, stockOut);
 router.put("/:shopId/products/:productId", authenticate, ownerOnly, updateProduct);
 router.delete("/:shopId/products/:productId", authenticate, ownerOnly, deleteProduct);
+router.get("/:shopId/inventory/search", authenticate, filterProductsByName);
+
+
 export default router;

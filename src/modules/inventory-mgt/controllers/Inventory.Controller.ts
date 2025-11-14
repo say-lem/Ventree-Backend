@@ -139,3 +139,20 @@ export const getLowStockProducts = asyncHandler(async (req: Request, res: Respon
     data: lowStockProducts,
   });
 });
+
+// filter product by name
+export const filterProductsByName = asyncHandler(async (req: Request, res: Response, next: NextFunction) => { 
+  const { shopId } = req.params;
+  const { name } = req.query;
+
+  if (!name || typeof name !== 'string') {
+    throw new ValidationError("Name query parameter is required and must be a string");
+  }
+
+  const products = await InventoryService.filterProductsByName(shopId, name);
+
+  res.status(200).json({
+    success: true,
+    data: products,
+  });
+});
