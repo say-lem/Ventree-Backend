@@ -1,6 +1,7 @@
 // Shared rate limit stores would change use Redis later
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const otpRequests = new Map<string, number>();
+const shopUpdateAttempts = new Map<string, { count: number; resetAt: number }>();
 
 export const checkRateLimit = (
   key: string,
@@ -34,3 +35,13 @@ export const checkOTPCooldown = (phone: string) => {
 
 // Get shared login attempts store
 export const getLoginAttemptsStore = () => loginAttempts;
+
+// Get shared shop update attempts store
+export const getShopUpdateAttemptsStore = () => shopUpdateAttempts;
+
+// Clear all rate limit stores (useful for testing)
+export const clearAllRateLimits = (): void => {
+  loginAttempts.clear();
+  otpRequests.clear();
+  shopUpdateAttempts.clear();
+};
