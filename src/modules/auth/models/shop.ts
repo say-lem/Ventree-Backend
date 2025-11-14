@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 enum BusinessType {
   RETAIL = "retail",
   WHOLESALE = "wholesale",
+  MANUFACTURER = "manufacturer",
   OTHER = "other"
 }
 
