@@ -48,6 +48,19 @@ interface StockUpdateData {
   //update a product in inventory
   export const updateProduct = async (shopId: string, productId: string, updateData: Partial<AddProductData>) => {
     
+    // If updating name, check for duplicates
+  if (updateData.name) {
+    const existingProduct = await Inventory.findOne({
+      shopId,
+      name: { $regex: new RegExp(`^${escapeRegex(updateData.name)}$`, 'i') },
+      _id: { $ne: productId } 
+    });
+
+    if (existingProduct) {
+      throw new AppError("Another product with this name already exists in your shop's inventory", 400);
+    }
+  }
+    
     const product = await Inventory.findOneAndUpdate(
       { _id: productId, shopId },
       { $set: updateData },
@@ -73,10 +86,13 @@ interface StockUpdateData {
   }
 
   // Get all inventory for a shop
- export const getInventory = async (shopId: string) => {
-    const inventory = await Inventory.find({ shopId });
-    return inventory;
-  }
+export const getInventory = async (shopId: string) => {
+  const inventory = await Inventory.find({ shopId })
+    .sort({ name: 1 }) 
+    .lean();
+  
+  return inventory;
+};
 
   // Increase stock quantity
   export const stockIn = async (data: StockUpdateData) => {
@@ -126,8 +142,15 @@ interface StockUpdateData {
   export const filterProductsByName = async (shopId: string, nameQuery: string) => {
     const products = await Inventory.find({ 
       shopId,
-      name: { $regex: new RegExp(nameQuery, 'i') } 
-    });
+      name: { $regex: new RegExp(escapeRegex(nameQuery), 'i') } 
+  })
+  .sort({ name: 1 })
+  .lean();
 
     return products;
   }
+
+  // Helper function to escape special regex characters
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
