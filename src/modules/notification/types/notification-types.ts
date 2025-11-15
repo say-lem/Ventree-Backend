@@ -7,10 +7,12 @@ export enum NotificationType {
   OUT_OF_STOCK = 'out_of_stock',
   SALE_COMPLETED = 'sale_completed',
   INVENTORY_UPDATED = 'inventory_updated',
+  STAFF_ACTION = 'staff_action',
   STAFF_CREATED = 'staff_created',
   STAFF_DELETED = 'staff_deleted',
   EXPENSE_ADDED = 'expense_added',
-  SYSTEM_ALERT = 'system',
+  SYSTEM_ALERT = 'system_alert',
+  SYSTEM = 'system',
   CUSTOM = 'custom',
 }
 

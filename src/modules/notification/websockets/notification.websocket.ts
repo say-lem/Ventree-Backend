@@ -16,9 +16,9 @@ export interface WebSocket {
 interface ConnectionInfo {
   ws: WebSocket;
   userId: string;
-  shopId: number;
-  role: 'ownerProfile' | 'staff';
-  profileId: number;
+  shopId: string;
+  role: 'owner' | 'staff';
+  profileId: string;
 }
 
 /**
@@ -29,7 +29,7 @@ interface ConnectionInfo {
 export class NotificationWebSocketHandler {
   private connections: Map<string, ConnectionInfo>;
   private userConnections: Map<string, Set<string>>; // userId -> Set of connection IDs
-  private shopConnections: Map<number, Set<string>>; // shopId -> Set of connection IDs
+  private shopConnections: Map<string, Set<string>>; // shopId -> Set of connection IDs
 
   constructor() {
     this.connections = new Map();
@@ -44,9 +44,9 @@ export class NotificationWebSocketHandler {
     connectionId: string,
     ws: WebSocket,
     userId: string,
-    shopId: number,
-    role: 'ownerProfile' | 'staff',
-    profileId: number
+    shopId: string,
+    role: 'owner' | 'staff',
+    profileId: string
   ): void {
     const connectionInfo: ConnectionInfo = {
       ws,
@@ -102,7 +102,7 @@ export class NotificationWebSocketHandler {
   /**
    * Broadcast notification to all clients in a shop
    */
-  broadcastToShop(shopId: number, notification: INotification): void {
+  broadcastToShop(shopId: string, notification: INotification): void {
     const connectionIds = this.shopConnections.get(shopId);
 
     if (!connectionIds) {
@@ -130,7 +130,7 @@ export class NotificationWebSocketHandler {
   /**
    * Send notification to specific staff member
    */
-  sendToStaff(shopId: number, staffId: number, notification: INotification): void {
+  sendToStaff(shopId: string, staffId: string, notification: INotification): void {
     const connectionIds = this.shopConnections.get(shopId);
 
     if (!connectionIds) {
@@ -163,7 +163,7 @@ export class NotificationWebSocketHandler {
   /**
    * Send notification to shop owner
    */
-  sendToOwner(shopId: number, ownerProfileId: number, notification: INotification): void {
+  sendToOwner(shopId: string, ownerProfileId: string, notification: INotification): void {
     const connectionIds = this.shopConnections.get(shopId);
 
     if (!connectionIds) {
@@ -179,7 +179,7 @@ export class NotificationWebSocketHandler {
       const connection = this.connections.get(connectionId);
       if (
         connection &&
-        connection.role === 'ownerProfile' &&
+        connection.role === 'owner' &&
         connection.profileId === ownerProfileId &&
         this.isConnectionOpen(connection.ws)
       ) {
@@ -248,7 +248,7 @@ export class NotificationWebSocketHandler {
   /**
    * Get active connections for a shop
    */
-  getShopConnectionCount(shopId: number): number {
+  getShopConnectionCount(shopId: string): number {
     const connections = this.shopConnections.get(shopId);
     return connections ? connections.size : 0;
   }

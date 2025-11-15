@@ -139,6 +139,7 @@ export class NotificationEmitter {
 
   /**
    * Publish notification to owner
+   * Note: ownerProfileId should be 'owner' as per JWT auth contract
    */
   async emitToOwner(shopId: string, ownerProfileId: string, notification: INotification): Promise<void> {
     const channel = `notifications:shop:${shopId}:owner:${ownerProfileId}`;
@@ -183,6 +184,7 @@ export class NotificationEmitter {
 
   /**
    * Subscribe to owner notifications
+   * Note: ownerProfileId should be 'owner' as per JWT auth contract
    */
   async subscribeToOwner(
     shopId: string,

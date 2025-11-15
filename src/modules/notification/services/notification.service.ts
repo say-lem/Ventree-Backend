@@ -19,7 +19,7 @@ export interface CreateNotificationInput {
   recipientId?: string;
   message: string;
   type: NotificationType;
-  inventoryId?:string; // Accept both number (for testing) and string/ObjectId (for production)
+  inventoryId?:string; // string/ObjectId (for production)
   metadata?: Record<string, any>;
   authContext: TokenPayload;
 }
@@ -103,29 +103,10 @@ export class NotificationService {
     }
     // For 'owner' recipientType, staffId remains undefined (notification for owner)
 
-    // Convert inventoryId to ObjectId
-    //  inventoryId should be a valid ObjectId string
+    // Convert inventoryId string to ObjectId (already validated by DTO)
     let inventoryIdObj: Types.ObjectId | undefined;
-    if (inventoryId !== undefined) {
-      if (typeof inventoryId === 'number') {
-    
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('[NotificationService] Received numeric inventoryId in production. Skipping to avoid incorrect references.');
-          inventoryIdObj = undefined;
-        } else {
-          
-          inventoryIdObj = new Types.ObjectId();
-          console.warn('[NotificationService] Testing mode: Created new ObjectId for numeric inventoryId. In production, pass ObjectId strings.');
-        }
-      } else if (typeof inventoryId === 'string') {
-        // Validate it's a valid ObjectId format
-        if (Types.ObjectId.isValid(inventoryId)) {
-          inventoryIdObj = new Types.ObjectId(inventoryId);
-        } else {
-          console.warn(`[NotificationService] Invalid ObjectId format: ${inventoryId}. Skipping inventoryId.`);
-          inventoryIdObj = undefined;
-        }
-      }
+    if (inventoryId && Types.ObjectId.isValid(inventoryId)) {
+      inventoryIdObj = new Types.ObjectId(inventoryId);
     }
 
     const notificationData = {
@@ -155,29 +136,10 @@ export class NotificationService {
 
     const vectorClock = VectorClockUtil.init(shopId);
 
-    // Convert inventoryId to ObjectId
-    // In production, inventoryId should be a valid ObjectId string
+    // Convert inventoryId string to ObjectId (already validated by DTO)
     let inventoryIdObj: Types.ObjectId | undefined;
-    if (inventoryId !== undefined) {
-      if (typeof inventoryId === 'number') {
-        // Testing mode: log warning and skip inventoryId to avoid incorrect references
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('[NotificationService] Received numeric inventoryId in production. Skipping to avoid incorrect references.');
-          inventoryIdObj = undefined;
-        } else {
-          // Development/testing: create a new ObjectId (for testing only)
-          inventoryIdObj = new Types.ObjectId();
-          console.warn('[NotificationService] Testing mode: Created new ObjectId for numeric inventoryId. In production, pass ObjectId strings.');
-        }
-      } else if (typeof inventoryId === 'string') {
-        // Validate it's a valid ObjectId format
-        if (Types.ObjectId.isValid(inventoryId)) {
-          inventoryIdObj = new Types.ObjectId(inventoryId);
-        } else {
-          console.warn(`[NotificationService] Invalid ObjectId format: ${inventoryId}. Skipping inventoryId.`);
-          inventoryIdObj = undefined;
-        }
-      }
+    if (inventoryId && Types.ObjectId.isValid(inventoryId)) {
+      inventoryIdObj = new Types.ObjectId(inventoryId);
     }
 
     const notificationData = {
@@ -225,8 +187,9 @@ export class NotificationService {
         // Emit to specific staff member
         await this.emitter.emitToStaff(shopId, staffId.toString(), notification);
       } else if (recipientType === 'owner') {
-        // Emit to owner - use shop channel as fallback since ownerProfileId may not be in metadata
-        // The shop channel will be received by all subscribers to that shop
+        // Emit to owner using 'owner' as profileId per JWT auth contract
+        // Also emit to shop channel for broader visibility
+        await this.emitter.emitToOwner(shopId, 'owner', notification);
         await this.emitter.emitToShop(shopId, notification);
       }
     } catch (error) {

@@ -23,7 +23,7 @@ export interface QueryFilters {
 interface NotificationData {
   shopId: Types.ObjectId;
   staffId?: Types.ObjectId;
-  inventoryId?: Types.ObjectId; // ObjectId for production
+  inventoryId?: Types.ObjectId;
   message: string;
   type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system_alert' | 'system' | 'custom';
   metadata?: Record<string, any>;

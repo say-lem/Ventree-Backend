@@ -7,8 +7,8 @@ export const queryNotificationsValidation = [
   query('shopId')
     .notEmpty()
     .withMessage('Shop ID is required')
-    .isInt({ min: 1 })
-    .withMessage('Shop ID must be a positive integer'),
+    .isMongoId()
+    .withMessage('Shop ID must be a valid MongoDB ObjectId'),
 
   query('unreadOnly')
     .optional()
@@ -46,6 +46,7 @@ export const queryNotificationsValidation = [
       'staff_created',
       'staff_deleted',
       'expense_added',
+      'system_alert',
       'system',
       'custom',
     ])
@@ -56,7 +57,7 @@ export const queryNotificationsValidation = [
  * Query Notifications Query Parameters Interface
  */
 export interface QueryNotificationsDto {
-  shopId: number;
+  shopId: string;
   unreadOnly?: boolean;
   limit?: number;
   offset?: number;

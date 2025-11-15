@@ -30,6 +30,9 @@ export class NotificationTemplateUtil {
       [NotificationType.INVENTORY_UPDATED]: (d: InventoryUpdatedData) =>
         `📦 Inventory updated: ${d.productName} changed from ${d.oldQuantity} to ${d.newQuantity} ${d.unit} by ${d.updatedBy}.`,
 
+      [NotificationType.STAFF_ACTION]: (d: StaffActionData) =>
+        `👤 Staff member ${d.staffName} was ${d.action} by ${d.performedBy}.`,
+
       [NotificationType.STAFF_CREATED]: (d: StaffActionData) =>
         `👤 New staff member ${d.staffName} was ${d.action} by ${d.performedBy}.`,
 
@@ -43,6 +46,9 @@ export class NotificationTemplateUtil {
         const icon = d.alertType === 'error' ? '❌' : d.alertType === 'warning' ? '⚠️' : 'ℹ️';
         return `${icon} ${d.message}${d.details ? ` - ${d.details}` : ''}`;
       },
+
+      [NotificationType.SYSTEM]: (d: any) =>
+        d.message || 'System notification.',
 
       [NotificationType.CUSTOM]: (d: any) =>
         d.message || 'You have a new notification.',
@@ -70,10 +76,12 @@ export class NotificationTemplateUtil {
       [NotificationType.OUT_OF_STOCK]: 'Out of Stock',
       [NotificationType.SALE_COMPLETED]: 'Sale Completed',
       [NotificationType.INVENTORY_UPDATED]: 'Inventory Updated',
+      [NotificationType.STAFF_ACTION]: 'Staff Action',
       [NotificationType.STAFF_CREATED]: 'Staff Created',
       [NotificationType.STAFF_DELETED]: 'Staff Deleted',
       [NotificationType.EXPENSE_ADDED]: 'Expense Added',
       [NotificationType.SYSTEM_ALERT]: 'System Alert',
+      [NotificationType.SYSTEM]: 'System Notification',
       [NotificationType.CUSTOM]: 'Notification',
     };
 
@@ -88,8 +96,10 @@ export class NotificationTemplateUtil {
       [NotificationType.OUT_OF_STOCK]: 'high',
       [NotificationType.LOW_STOCK]: 'high',
       [NotificationType.SYSTEM_ALERT]: 'high',
+      [NotificationType.SYSTEM]: 'high',
       [NotificationType.SALE_COMPLETED]: 'medium',
       [NotificationType.INVENTORY_UPDATED]: 'medium',
+      [NotificationType.STAFF_ACTION]: 'low',
       [NotificationType.STAFF_CREATED]: 'low',
       [NotificationType.STAFF_DELETED]: 'low',
       [NotificationType.EXPENSE_ADDED]: 'medium',

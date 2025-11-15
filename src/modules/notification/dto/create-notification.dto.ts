@@ -39,9 +39,11 @@ export const createNotificationValidation = [
       'out_of_stock',
       'sale_completed',
       'inventory_updated',
+      'staff_action',
       'staff_created',
       'staff_deleted',
       'expense_added',
+      'system_alert',
       'system',
       'custom',
     ])
@@ -49,8 +51,8 @@ export const createNotificationValidation = [
 
   body('inventoryId')
     .optional()
-    .isInt({ min: 1 })
-    .withMessage('Inventory ID must be a positive integer'),
+    .isMongoId()
+    .withMessage('Inventory ID must be a valid MongoDB ObjectId'),
 
   body('metadata')
     .optional()
@@ -66,7 +68,7 @@ export interface CreateNotificationDto {
   recipientType: 'owner' | 'staff' | 'all';
   recipientId?: string;
   message?: string;
-  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system' | 'custom';
-  inventoryId?: Types.ObjectId;
+  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system_alert' | 'system' | 'custom';
+  inventoryId?: string;
   metadata?: Record<string, any>;
 }

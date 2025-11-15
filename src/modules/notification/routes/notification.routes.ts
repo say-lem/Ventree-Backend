@@ -47,8 +47,8 @@ router.get(
     query('shopId')
       .notEmpty()
       .withMessage('Shop ID is required')
-      .isInt({ min: 1 })
-      .withMessage('Shop ID must be a positive integer'),
+      .isMongoId()
+      .withMessage('Shop ID must be a valid MongoDB ObjectId'),
   ],
   notificationController.getUnreadCount
 );

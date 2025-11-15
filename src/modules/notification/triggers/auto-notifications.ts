@@ -76,7 +76,7 @@ export class AutoNotificationTriggers {
         recipientType: 'owner',
         message,
         type: NotificationType.LOW_STOCK,
-        inventoryId,
+        inventoryId: inventoryId.toString(),
         metadata: data,
         authContext: context,
       });
@@ -114,7 +114,7 @@ export class AutoNotificationTriggers {
         recipientType: 'all',
         message,
         type: NotificationType.OUT_OF_STOCK,
-        inventoryId,
+        inventoryId: inventoryId.toString(),
         metadata: data,
         authContext: context,
       });
@@ -206,7 +206,7 @@ export class AutoNotificationTriggers {
         recipientType: 'owner',
         message,
         type: NotificationType.INVENTORY_UPDATED,
-        inventoryId,
+        inventoryId: inventoryId.toString(),
         metadata: data,
         authContext: context,
       });
