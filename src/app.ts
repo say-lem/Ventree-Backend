@@ -10,6 +10,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { authRouter } from "./modules/auth";
+import { shopRouter } from "./modules/shops/routes/shop.routes";
 import { staffRoutes } from "./modules/staff-management";
 import { notificationRoutes } from "./modules/notification";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
@@ -45,6 +46,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 app.use("/api/auth", authRouter);
 app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/shop", shopRouter);
 
 // 404 handler (must be after all routes)
 app.use(notFoundHandler);
