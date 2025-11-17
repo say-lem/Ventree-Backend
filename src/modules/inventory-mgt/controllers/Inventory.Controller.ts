@@ -1,141 +1,465 @@
-import { Request, Response, NextFunction } from "express";
+import { Response } from "express";
+import { validationResult } from "express-validator";
+import { InventoryService } from "../services/Inventory.Service";
+import { AuthenticatedRequest } from "../../../shared/middleware/auth.middleware";
 import { asyncHandler } from "../../../shared/utils/asyncHandler";
-import { AuthorizationError, ValidationError } from "../../../shared/utils/AppError";
-import * as InventoryService from "../services/Inventory.Service";
+import { ValidationError, AuthenticationError } from "../../../shared/utils/AppError";
+import crypto from "crypto";
 
-// Add a new product to inventory
-export const addProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+const inventoryService = new InventoryService();
+
+/**
+ * @route POST /inventory/:shopId/items
+ * @desc Create new inventory item
+ */
+export const createItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
   const { shopId } = req.params;
-  const { name, costPrice, sellingPrice, unit, quantity, lowStockAt } = req.body;
-  const userId = req.user?.profileId;
+  const itemData = req.body;
 
-
-  // Authorization check
-  if (req.user?.role !== "owner") {
-    throw new AuthorizationError("Only shop owners can add products");
-  }
-
-  // Validation
-  if (!name || !costPrice || !sellingPrice || !unit) {
-    throw new ValidationError("Missing required product fields");
-  }
-
-  // Call service
-  const product = await InventoryService.addProduct({
-    shopId,
-    uploader: userId!,
-    name,
-    costPrice,
-    sellingPrice,
-    unit,
-    quantity,
-    lowStockAt,
-  });
+  const item = await inventoryService.createItem(
+    { ...itemData, shopId },
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
 
   res.status(201).json({
     success: true,
-    message: "Product added successfully",
-    data: product,
+    message: "Inventory item created successfully",
+    data: item,
   });
 });
 
-export const updateProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId, productId } = req.params;
-  const updateData = req.body;
-
-  // Call service
-  const updatedProduct = await InventoryService.updateProduct(shopId, productId, updateData);
-
-  res.status(200).json({
-    success: true,
-    message: "Product updated successfully",
-    data: updatedProduct,
-  });
-});
-
-//delete a product from inventory
-export const deleteProduct = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId, productId } = req.params;
-
-  // Call service to delete product
-  await InventoryService.deleteProduct(shopId, productId);
-
-  res.status(200).json({
-    success: true,
-    message: "Product deleted successfully",
-  });
-});
-
-// Get all inventory for a shop
-export const getInventory = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId } = req.params;
-
-  const inventory = await InventoryService.getInventory(shopId);
-
-  res.status(200).json({
-    success: true,
-    data: inventory,
-  });
-});
-
-// Increase stock quantity
-export const stockIn = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId } = req.params;
-  const { productId, quantity } = req.body;
-
-  // Validation
-  if (!productId || !quantity) {
-    throw new ValidationError("Product ID and quantity are required");
+/**
+ * @route GET /inventory/:shopId/items
+ * @desc Get inventory list with filters
+ */
+export const getInventoryList = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
   }
 
-  const product = await InventoryService.stockIn({
-    shopId,
-    productId,
-    quantity,
-  });
-
-  res.status(200).json({
-    success: true,
-    message: "Stock updated successfully (stock-in)",
-    data: product,
-  });
-});
-
-// Decrease stock quantity (triggered by sales)
-export const stockOut = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId } = req.params;
-  const { productId, quantity } = req.body;
-
-  // Validation
-  if (!productId || !quantity) {
-    throw new ValidationError("Product ID and quantity are required");
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
   }
 
-  const product = await InventoryService.stockOut({
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+  const {
+    category,
+    subCategory,
+    isActive = "true",
+    isLowStock,
+    isOutOfStock,
+    search,
+    tags,
+    minPrice,
+    maxPrice,
+    page = "1",
+    limit = "20",
+    sortBy = "createdAt",
+    sortOrder = "desc",
+  } = req.query;
+
+  const result = await inventoryService.getInventoryList(
     shopId,
-    productId,
-    quantity,
-  });
+    {
+      category: category as string,
+      subCategory: subCategory as string,
+      isActive: isActive === "true",
+      isLowStock: isLowStock === "true",
+      isOutOfStock: isOutOfStock === "true",
+      search: search as string,
+      tags: tags ? (tags as string).split(",") : undefined,
+      minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      sortBy: sortBy as any,
+      sortOrder: sortOrder as any,
+    },
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
 
   res.status(200).json({
     success: true,
-    message: "Stock updated successfully (stock-out)",
-    data: product,
+    message: "Inventory retrieved successfully",
+    data: result,
   });
 });
 
-// Get all products that are low in stock
-export const getLowStockProducts = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { shopId } = req.params;
+/**
+ * @route GET /inventory/:shopId/items/:itemId
+ * @desc Get single inventory item
+ */
+export const getItemById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
 
-  const lowStockProducts = await InventoryService.getLowStockProducts(shopId);
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+
+  const item = await inventoryService.getItemById(itemId, shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
 
   res.status(200).json({
     success: true,
-    message: lowStockProducts.length > 0 
-      ? `Found ${lowStockProducts.length} product(s) with low stock` 
-      : "No products are currently low in stock",
-    count: lowStockProducts.length,
-    data: lowStockProducts,
+    message: "Item retrieved successfully",
+    data: item,
+  });
+});
+
+/**
+ * @route PUT /inventory/:shopId/items/:itemId
+ * @desc Update inventory item
+ */
+export const updateItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+  const updates = req.body;
+
+  const item = await inventoryService.updateItem(itemId, shopId, updates, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Item updated successfully",
+    data: item,
+  });
+});
+
+/**
+ * @route DELETE /inventory/:shopId/items/:itemId
+ * @desc Delete inventory item
+ */
+export const deleteItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+
+  await inventoryService.deleteItem(itemId, shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Item deleted successfully",
+  });
+});
+
+/**
+ * @route POST /inventory/:shopId/items/:itemId/restock
+ * @desc Restock inventory item
+ */
+export const restockItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+  const { quantity, costPrice, notes } = req.body;
+
+  const item = await inventoryService.restockItem(
+    itemId,
+    shopId,
+    { quantity, costPrice, notes },
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Item restocked successfully",
+    data: item,
+  });
+});
+
+/**
+ * @route POST /inventory/:shopId/items/:itemId/adjust
+ * @desc Adjust stock (damages, corrections, etc.)
+ */
+export const adjustStock = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+  const { quantity, reason, notes } = req.body;
+
+  const item = await inventoryService.adjustStock(
+    itemId,
+    shopId,
+    { quantity, reason, notes },
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Stock adjusted successfully",
+    data: item,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/low-stock
+ * @desc Get low stock items
+ */
+export const getLowStockItems = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+
+  const items = await inventoryService.getLowStockItems(shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: items.length > 0 
+      ? `Found ${items.length} low stock items` 
+      : "No low stock items",
+    count: items.length,
+    data: items,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/out-of-stock
+ * @desc Get out of stock items
+ */
+export const getOutOfStockItems = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+
+  const items = await inventoryService.getOutOfStockItems(shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: items.length > 0 
+      ? `Found ${items.length} out of stock items` 
+      : "No out of stock items",
+    count: items.length,
+    data: items,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/expiring
+ * @desc Get expiring items
+ */
+export const getExpiringItems = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+  const { days = "30" } = req.query;
+
+  const items = await inventoryService.getExpiringItems(
+    shopId,
+    parseInt(days as string),
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: items.length > 0 
+      ? `Found ${items.length} items expiring in ${days} days` 
+      : `No items expiring in ${days} days`,
+    count: items.length,
+    data: items,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/analytics
+ * @desc Get inventory analytics
+ */
+export const getAnalytics = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+
+  const analytics = await inventoryService.getAnalytics(shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Analytics retrieved successfully",
+    data: analytics,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/categories
+ * @desc Get all categories with item counts
+ */
+export const getCategories = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId } = req.params;
+
+  const categories = await inventoryService.getCategories(shopId, {
+    requestId,
+    ip: req.ip || "unknown",
+    userId: req.user.profileId,
+    userRole: req.user.role,
+    userShopId: req.user.shopId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Categories retrieved successfully",
+    data: categories,
+  });
+});
+
+/**
+ * @route GET /inventory/:shopId/items/:itemId/movements
+ * @desc Get stock movements for an item
+ */
+export const getStockMovements = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, itemId } = req.params;
+  const { page = "1", limit = "20" } = req.query;
+
+  const result = await inventoryService.getStockMovements(
+    itemId,
+    shopId,
+    parseInt(page as string),
+    parseInt(limit as string),
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Stock movements retrieved successfully",
+    data: result,
   });
 });
