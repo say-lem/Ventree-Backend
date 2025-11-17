@@ -11,6 +11,7 @@ if (!JWT_SECRET) {
  * Token payload interface
  */
 export interface TokenPayload {
+  id: string;
   shopId: string;
   role: "owner" | "staff";
   profileId: string;
@@ -72,6 +73,7 @@ export const authenticate = (
 
       // Attach user info to request
       req.user = {
+        id: decoded.id,
         shopId: decoded.shopId,
         role: decoded.role,
         profileId: decoded.profileId,
@@ -256,6 +258,7 @@ export const optionalAuthenticate = (
       const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
 
       req.user = {
+        id: decoded.id,
         shopId: decoded.shopId,
         role: decoded.role,
         profileId: decoded.profileId,
