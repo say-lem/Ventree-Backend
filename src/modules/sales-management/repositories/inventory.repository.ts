@@ -1,4 +1,4 @@
-import Inventory from "../models/inventory/inventory.model"; // adjust path after i merge Ozioma's code
+import Inventory from "../../inventory-mgt/models/Inventory";
 import { Types } from "mongoose";
 
 export class InventoryRepository {
