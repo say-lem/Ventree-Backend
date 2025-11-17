@@ -46,6 +46,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 app.use("/api/auth", authRouter);
 app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/shop", shopRouter);
 
 // 404 handler (must be after all routes)
