@@ -2,3 +2,6 @@ node_modules/
 .env
 dist/
 .DS_Store
+src/modules/inventory-mgt/seed
+src/modules/inventory-mgt/middlewares/isAuthenticated.ts
+src/modules/inventory-mgt/middlewares/fakeAuth.ts
