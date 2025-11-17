@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+
+// Load environment variables FIRST before any other imports
+dotenv.config();
+
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -7,9 +12,8 @@ import compression from "compression";
 import { authRouter } from "./modules/auth";
 import { shopRouter } from "./modules/shops/routes/shop.routes";
 import { staffRoutes } from "./modules/staff-management";
+import { notificationRoutes } from "./modules/notification";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
-import { inventoryMgtRouter } from "./modules/inventory-mgt";
-
 
 const app: Application = express();
 
@@ -41,6 +45,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/v1/staff", staffRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/shop", shopRouter);
 

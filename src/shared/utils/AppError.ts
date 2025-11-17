@@ -60,6 +60,16 @@ export class AuthorizationError extends AppError {
 }
 
 /**
+ * Bad request error - 400 Bad Request
+ */
+export class BadRequestError extends AppError {
+  constructor(message: string = "Bad request", code?: string) {
+    super(message, 400, true, code || "BAD_REQUEST");
+    Object.setPrototypeOf(this, BadRequestError.prototype);
+  }
+}
+
+/**
  * Not found error - 404 Not Found
  */
 export class NotFoundError extends AppError {
