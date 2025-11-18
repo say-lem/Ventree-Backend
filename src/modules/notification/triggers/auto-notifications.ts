@@ -38,6 +38,7 @@ export class AutoNotificationTriggers {
     }
 
     return {
+      id: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,
       shopId,
       role: 'owner',
       profileId: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,

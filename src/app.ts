@@ -13,6 +13,7 @@ import { authRouter } from "./modules/auth";
 import { shopRouter } from "./modules/shops/routes/shop.routes";
 import { staffRoutes } from "./modules/staff-management";
 import { notificationRoutes } from "./modules/notification";
+import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
 
 const app: Application = express();
