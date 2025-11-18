@@ -5,11 +5,10 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { authRouter } from "./modules/auth";
-import { shopRouter } from "./modules/shops/routes/shop.routes";
-import { staffRoutes } from "./modules/staff-management";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
-import { inventoryMgtRouter } from "./modules/inventory-mgt";
+import dotenv from "dotenv";
 
+dotenv.config();
 
 const app: Application = express();
 
@@ -33,6 +32,14 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
+// Root route to satisfy uptime checks
+app.get("/", (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: "ok",
+    message: "Ventree API is running 🚀",
+  });
+});
+
 // Health check endpoint
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", message: "Server running" });
@@ -40,14 +47,11 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 // Routes
 app.use("/api/auth", authRouter);
-app.use("/api/v1/staff", staffRoutes);
-app.use("/api/v1/inventory", inventoryMgtRouter);
-app.use("/api/v1/shop", shopRouter);
 
-// 404 handler (must be after all routes)
+// 404 handler 
 app.use(notFoundHandler);
 
-// Global error handler (must be last)
+//global error handler
 app.use(errorHandler);
 
 export default app;

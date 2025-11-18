@@ -1,0 +1,2 @@
+{"timestamp":"2025-11-13T15:11:27.119Z","requestId":"8c7716dc-f51d-42b1-9d65-5121ba089e36","action":"REGISTER_SUCCESS","ip":"::1","shopId":"6915f51e6ddd4cecd38e7393"}
+{"timestamp":"2025-11-13T15:15:34.036Z","requestId":"02dc7c94-5b9b-4d90-8224-1a955f44b589","action":"VERIFY_OTP_SUCCESS","ip":"::1","shopId":"6915f51e6ddd4cecd38e7393"}
