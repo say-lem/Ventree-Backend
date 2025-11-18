@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { AutoNotificationTriggers } from '../src/modules/notification';
+import { AutoNotificationTriggers, TokenPayload } from '../src/modules/notification';
 
 // Load environment variables
 dotenv.config();
@@ -21,7 +21,8 @@ const SHOP_ID = '6915f51e6ddd4cecd38e7393';
 const OWNER_PROFILE_ID = 'owner'; 
 
 // auth context (owner)
-const authContext = {
+const authContext: TokenPayload = {
+  id: OWNER_PROFILE_ID,
   shopId: SHOP_ID,
   role: 'owner' as const,
   profileId: OWNER_PROFILE_ID,
@@ -35,7 +36,7 @@ async function testAllTriggers() {
     // Test 1: Low Stock Notification
     console.log('1️⃣ Testing onLowStock...');
     await AutoNotificationTriggers.onLowStock(
-      1001, // inventoryId 
+      new mongoose.Types.ObjectId().toHexString(),
       SHOP_ID,
       'Premium Widget',
       5, // quantity
@@ -49,7 +50,7 @@ async function testAllTriggers() {
     // Test 2: Out of Stock Notification (broadcast)
     console.log('2️⃣ Testing onOutOfStock...');
     await AutoNotificationTriggers.onOutOfStock(
-      1002, // inventoryId (will be converted to ObjectId by service)
+      new mongoose.Types.ObjectId().toHexString(),
       SHOP_ID,
       'Basic Widget',
       authContext
@@ -75,7 +76,7 @@ async function testAllTriggers() {
     // Test 4: Inventory Updated Notification
     console.log('4️⃣ Testing onInventoryUpdated...');
     await AutoNotificationTriggers.onInventoryUpdated(
-      1003, // inventoryId (will be converted to ObjectId by service)
+      new mongoose.Types.ObjectId().toHexString(),
       SHOP_ID,
       'Deluxe Widget',
       20, // oldQuantity

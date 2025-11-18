@@ -12,6 +12,7 @@ const notificationController = new NotificationController();
 
 // All routes require authentication
 router.use(authenticate);
+router.use(checkNotificationPermission);
 
 /**
  * POST /api/v1/notifications
@@ -20,7 +21,6 @@ router.use(authenticate);
  */
 router.post(
   '/',
-  checkNotificationPermission,
   createNotificationValidation,
   notificationController.create
 );

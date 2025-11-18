@@ -7,7 +7,6 @@ import { TokenPayload } from '../../../shared/middleware/auth.middleware';
 import { BadRequestError, NotFoundError, AuthorizationError } from '../../../shared/utils/AppError';
 import { Types } from 'mongoose';
 import { StaffService } from '../../staff-management/services/staff.service';
-import { StaffRepository } from '../../staff-management/repositories/staff.repository';
 import { NotificationEmitter } from '../emitters/notification.emitter';
 
 /**
@@ -19,7 +18,7 @@ export interface CreateNotificationInput {
   recipientId?: string;
   message: string;
   type: NotificationType;
-  inventoryId?:string; // string/ObjectId (for production)
+  inventoryId?: string; // string/ObjectId (for production)
   metadata?: Record<string, any>;
   authContext: TokenPayload;
 }
@@ -53,18 +52,15 @@ export interface MarkReadInput {
 export class NotificationService {
   private repository: NotificationRepository;
   private staffService: StaffService;
-  private staffRepository: StaffRepository;
   private emitter: NotificationEmitter | null;
 
   constructor(
     repository?: NotificationRepository,
     staffService?: StaffService,
-    staffRepository?: StaffRepository,
     emitter?: NotificationEmitter | null
   ) {
     this.repository = repository || new NotificationRepository();
     this.staffService = staffService || new StaffService();
-    this.staffRepository = staffRepository || new StaffRepository();
     this.emitter = emitter !== undefined ? emitter : null;
   }
 
