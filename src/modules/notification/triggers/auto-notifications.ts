@@ -40,7 +40,7 @@ export class AutoNotificationTriggers {
     const systemId = `${this.SYSTEM_USER_ID_PREFIX}:${shopId}`;
 
     return {
-      id: systemId,
+      id: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,
       shopId,
       role: 'owner',
       profileId: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,

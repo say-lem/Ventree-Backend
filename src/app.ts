@@ -7,9 +7,10 @@ import compression from "compression";
 import { authRouter } from "./modules/auth";
 import { shopRouter } from "./modules/shops/routes/shop.routes";
 import { staffRoutes } from "./modules/staff-management";
-import { inventoryMgtRouter } from "./modules/inventory-mgt";
+//import { inventoryMgtRouter } from "./modules/inventory-mgt";
 import { salesRoutes } from "./modules/sales-management";
 import { notificationRoutes } from "./modules/notification";
+import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
 import dotenv from "dotenv";
 
