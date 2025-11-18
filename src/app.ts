@@ -5,6 +5,12 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { authRouter } from "./modules/auth";
+import { shopRouter } from "./modules/shops/routes/shop.routes";
+import { staffRoutes } from "./modules/staff-management";
+//import { inventoryMgtRouter } from "./modules/inventory-mgt";
+import { salesRoutes } from "./modules/sales-management";
+import { notificationRoutes } from "./modules/notification";
+import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
 import dotenv from "dotenv";
 
@@ -36,7 +42,7 @@ app.use("/api", limiter);
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     status: "ok",
-    message: "Ventree API is running 🚀",
+    message: "Ventree API is running ",
   });
 });
 
@@ -47,6 +53,11 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 // Routes
 app.use("/api/auth", authRouter);
+app.use("/api/v1/shop", shopRouter);
+app.use("/api/v1/staff", staffRoutes);
+app.use("/api/v1/inventory", inventoryMgtRouter);
+app.use("/api/v1/sales", salesRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // 404 handler 
 app.use(notFoundHandler);

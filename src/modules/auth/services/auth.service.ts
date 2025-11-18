@@ -253,6 +253,43 @@ export const loginUserService = async ({ shopName, phoneNumber, password, ip, re
 
     const { accessToken, refreshToken } = generateTokens(payload);
 
+    const shopRecord = shop.toObject() as any;
+    const shopResponse = {
+      id: shopRecord._id,
+      shopName: shopRecord.shopName,
+      phoneNumber: shopRecord.phoneNumber,
+      address: shopRecord.address,
+      businessType: shopRecord.businessType,
+      isVerified: shopRecord.isVerified,
+      kycStatus: shopRecord.kycStatus,
+      kycSubmittedAt: shopRecord.kycSubmittedAt,
+      owner: {
+        name: shopRecord.owner?.name,
+        phoneNumber: shopRecord.phoneNumber,
+      },
+    };
+
+    const ownerResponse = {
+      name: shopRecord.owner?.name,
+      phoneNumber: shopRecord.phoneNumber,
+    };
+
+    const staffResponse =
+      role === "staff" && staffData
+        ? (() => {
+            const staffRecord = staffData.toObject();
+            return {
+              id: staffRecord._id,
+              staffName: staffRecord.staffName,
+              phoneNumber: staffRecord.phoneNumber,
+              role: staffRecord.role,
+              isActive: staffRecord.isActive,
+              createdAt: staffRecord.createdAt,
+              updatedAt: staffRecord.updatedAt,
+            };
+          })()
+        : null;
+
     await logAuditEvent({
       requestId: requestId || crypto.randomUUID(),
       action: "LOGIN_SUCCESS",
@@ -266,6 +303,9 @@ export const loginUserService = async ({ shopName, phoneNumber, password, ip, re
       accessToken,
       refreshToken,
       role,
+      owner: ownerResponse,
+      shop: shopResponse,
+      staff: staffResponse,
     };
   } catch (error) {
     // Re-throw AppError instances
