@@ -60,7 +60,11 @@ export class NotificationRepository {
     // Filter by recipient
     if (filters.recipientId && filters.recipientType) {
       if (filters.recipientType === 'staff') {
-        query.staffId = new Types.ObjectId(filters.recipientId);
+        query.$or = [
+          { staffId: new Types.ObjectId(filters.recipientId) },
+          { staffId: { $exists: false } },
+          { staffId: null },
+        ];
       } else if (filters.recipientType === 'owner') {
         // For owner, show all notifications without staffId (broadcast) or no specific recipient
         query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
@@ -68,8 +72,8 @@ export class NotificationRepository {
     }
 
     // Filter by read status
-    if (filters.unreadOnly !== undefined) {
-      query.isRead = !filters.unreadOnly;
+    if (filters.unreadOnly === true) {
+      query.isRead = false;
     }
 
     // Filter by type
@@ -148,7 +152,11 @@ export class NotificationRepository {
     };
 
     if (role === 'staff' && recipientId) {
-      query.staffId = new Types.ObjectId(recipientId);
+      query.$or = [
+        { staffId: new Types.ObjectId(recipientId) },
+        { staffId: { $exists: false } },
+        { staffId: null },
+      ];
     } else if (role === 'owner') {
       // Owner sees all notifications or those without specific staff recipient
       query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
@@ -185,7 +193,11 @@ export class NotificationRepository {
 
     if (filters?.recipientId && filters?.recipientType) {
       if (filters.recipientType === 'staff') {
-        query.staffId = new Types.ObjectId(filters.recipientId);
+        query.$or = [
+          { staffId: new Types.ObjectId(filters.recipientId) },
+          { staffId: { $exists: false } },
+          { staffId: null },
+        ];
       } else if (filters.recipientType === 'owner') {
         query.$or = [{ staffId: { $exists: false } }, { staffId: null }];
       }

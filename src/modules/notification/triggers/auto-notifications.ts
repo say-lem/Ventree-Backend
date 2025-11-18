@@ -10,6 +10,8 @@ import { TokenPayload } from '../../../shared/middleware/auth.middleware';
  */
 export class AutoNotificationTriggers {
   private static notificationService: NotificationService | null = null;
+  private static readonly SYSTEM_PROFILE_PREFIX = 'system-profile';
+  private static readonly SYSTEM_USER_ID_PREFIX = 'system-user';
 
   /**
    * Get notification service instance (singleton with Redis emitter)
@@ -20,8 +22,6 @@ export class AutoNotificationTriggers {
     }
     return this.notificationService;
   }
-  private static SYSTEM_PROFILE_PREFIX = 'system';
-
   private static resolveAuthContext(shopId: string, authContext?: TokenPayload): TokenPayload {
     if (authContext) {
       if (authContext.shopId !== shopId) {
@@ -37,11 +37,14 @@ export class AutoNotificationTriggers {
       }
     }
 
+    const systemId = `${this.SYSTEM_USER_ID_PREFIX}:${shopId}`;
+
     return {
       id: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,
       shopId,
       role: 'owner',
       profileId: `${this.SYSTEM_PROFILE_PREFIX}:${shopId}`,
+      staffName: 'System',
     };
   }
 
@@ -51,7 +54,7 @@ export class AutoNotificationTriggers {
    * TODO: Integrate with InventoryService
    */
   static async onLowStock(
-    inventoryId: number,
+    inventoryId: string,
     shopId: string,
     productName: string,
     quantity: number,
@@ -77,7 +80,7 @@ export class AutoNotificationTriggers {
         recipientType: 'owner',
         message,
         type: NotificationType.LOW_STOCK,
-        inventoryId: inventoryId.toString(),
+        inventoryId,
         metadata: data,
         authContext: context,
       });
@@ -95,7 +98,7 @@ export class AutoNotificationTriggers {
    * TODO: Integrate with InventoryService
    */
   static async onOutOfStock(
-    inventoryId: number,
+    inventoryId: string,
     shopId: string,
     productName: string,
     authContext?: TokenPayload
@@ -115,7 +118,7 @@ export class AutoNotificationTriggers {
         recipientType: 'all',
         message,
         type: NotificationType.OUT_OF_STOCK,
-        inventoryId: inventoryId.toString(),
+        inventoryId,
         metadata: data,
         authContext: context,
       });
@@ -178,7 +181,7 @@ export class AutoNotificationTriggers {
    * TODO: Integrate with InventoryService
    */
   static async onInventoryUpdated(
-    inventoryId: number,
+    inventoryId: string,
     shopId: string,
     productName: string,
     oldQuantity: number,
@@ -207,7 +210,7 @@ export class AutoNotificationTriggers {
         recipientType: 'owner',
         message,
         type: NotificationType.INVENTORY_UPDATED,
-        inventoryId: inventoryId.toString(),
+        inventoryId,
         metadata: data,
         authContext: context,
       });
