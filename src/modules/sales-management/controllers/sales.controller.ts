@@ -28,7 +28,7 @@ export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
   const sale = await salesService.recordSale(saleData, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });

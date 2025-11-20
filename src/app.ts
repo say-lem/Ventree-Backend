@@ -46,11 +46,6 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-// Health check endpoint
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(200).json({ status: "ok", message: "Server running" });
-});
-
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/v1/shop", shopRouter);

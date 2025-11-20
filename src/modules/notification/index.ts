@@ -27,7 +27,7 @@ export { TokenPayload, AuthenticatedRequest } from '../../shared/middleware/auth
 
 // Emitter and WebSocket
 export { NotificationEmitter } from './emitters/notification.emitter';
-export { NotificationWebSocketHandler, WebSocket } from './websockets/notification.websocket';
+export { NotificationSocketIOHandler } from './websockets/notification-socketio';
 
 // Auto Triggers
 export { AutoNotificationTriggers } from './triggers/auto-notifications';

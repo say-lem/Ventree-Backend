@@ -38,12 +38,8 @@ export const createNotificationValidation = [
       'low_stock',
       'out_of_stock',
       'sale_completed',
-      'inventory_updated',
       'staff_action',
-      'staff_created',
-      'staff_deleted',
       'expense_added',
-      'system_alert',
       'system',
       'custom',
     ])
@@ -68,7 +64,14 @@ export interface CreateNotificationDto {
   recipientType: 'owner' | 'staff' | 'all';
   recipientId?: string;
   message?: string;
-  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system_alert' | 'system' | 'custom';
+  type:
+    | 'low_stock'
+    | 'out_of_stock'
+    | 'sale_completed'
+    | 'staff_action'
+    | 'expense_added'
+    | 'system'
+    | 'custom';
   inventoryId?: string;
   metadata?: Record<string, any>;
 }
