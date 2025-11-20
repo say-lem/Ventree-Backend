@@ -1,0 +1,101 @@
+import { Router } from "express";
+import { authenticate, ownerOnly, verifyShopAccess } from "../../../shared/middleware/auth.middleware";
+import { validateRequest } from "../middlewares/validateRequest.middleware";
+import {
+    expensesCreateValidation,
+    expensesUpdateValidation,
+    expensesDeleteValidation,
+    shopIdParamValidation,
+    filterExpensesValidation,
+} from "../validators/expenses.validator";
+import {
+  createExpenseController,
+  getExpensesController,
+  getFilteredExpensesController,
+  getSingleExpenseController,
+  getTotalExpensesController,
+  updateExpenseController,
+  deleteExpenseController
+} from "../controllers/expenses.controller";
+
+const router = Router();
+
+// CREATE EXPENSE (manager only)
+router.post(
+  "/",
+  authenticate,
+  expensesCreateValidation,
+  validateRequest,
+  createExpenseController
+);
+
+
+// ─────────────────────────────────────────────
+// LIST ALL EXPENSES
+// ─────────────────────────────────────────────
+router.get(
+  "/:shopId",
+  authenticate,
+  shopIdParamValidation,
+  validateRequest,
+  getExpensesController
+);
+
+
+// ─────────────────────────────────────────────
+// FILTERED EXPENSES (today, week, month)
+// ─────────────────────────────────────────────
+router.get(
+  "/:shopId/filter",
+  authenticate,
+  filterExpensesValidation,
+  getFilteredExpensesController
+);
+
+
+// ─────────────────────────────────────────────
+// TOTAL EXPENSES (today, week, month, total)
+// ─────────────────────────────────────────────
+router.get(
+  "/:shopId/total",
+  authenticate,
+  shopIdParamValidation,
+  getTotalExpensesController
+);
+
+
+// ─────────────────────────────────────────────
+// GET SINGLE EXPENSE
+// ─────────────────────────────────────────────
+router.get(
+  "/:shopId/:expenseId",
+  authenticate,
+  shopIdParamValidation,
+  getSingleExpenseController
+);
+
+
+// ─────────────────────────────────────────────
+// UPDATE EXPENSE (manager + owner)
+// ─────────────────────────────────────────────
+router.patch(
+  "/:shopId/:expenseId",
+  authenticate,
+  expensesUpdateValidation,
+  updateExpenseController
+);
+
+
+// ─────────────────────────────────────────────
+// DELETE EXPENSE (owner only)
+// ─────────────────────────────────────────────
+router.delete(
+  "/:shopId/:expenseId",
+  authenticate,
+  ownerOnly,
+  expensesDeleteValidation,
+  deleteExpenseController
+);
+
+
+export { router as expensesRouter };
