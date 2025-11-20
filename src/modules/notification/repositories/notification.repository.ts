@@ -25,7 +25,14 @@ interface NotificationData {
   staffId?: Types.ObjectId;
   inventoryId?: Types.ObjectId;
   message: string;
-  type: 'low_stock' | 'out_of_stock' | 'sale_completed' | 'inventory_updated' | 'staff_action' | 'staff_created' | 'staff_deleted' | 'expense_added' | 'system_alert' | 'system' | 'custom';
+  type:
+    | 'low_stock'
+    | 'out_of_stock'
+    | 'sale_completed'
+    | 'staff_action'
+    | 'expense_added'
+    | 'system'
+    | 'custom';
   metadata?: Record<string, any>;
   vectorClock: VectorClock;
 }
@@ -232,5 +239,42 @@ export class NotificationRepository {
   async bulkCreate(notifications: NotificationData[]): Promise<INotification[]> {
     const result = await NotificationModel.insertMany(notifications);
     return result as INotification[];
+  }
+
+  /**
+   * Find recent notification to prevent duplicates
+   * Used for deduplicating inventory threshold notifications
+   */
+  async findRecentNotification(
+    shopId: Types.ObjectId,
+    inventoryId: Types.ObjectId,
+    type: string,
+    withinMinutes: number
+  ): Promise<INotification | null> {
+    const cutoff = new Date(Date.now() - withinMinutes * 60 * 1000);
+    return await NotificationModel.findOne({
+      shopId,
+      inventoryId,
+      type,
+      created_at: { $gte: cutoff },
+    })
+      .sort({ created_at: -1 })
+      .lean() as INotification | null;
+  }
+
+  /**
+   * Archive old notifications
+   * Should be run periodically to prevent database bloat
+   */
+  async archiveOldNotifications(olderThanDays: number, deleteRead: boolean = true): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const query: any = { created_at: { $lt: cutoff } };
+    
+    if (deleteRead) {
+      query.isRead = true; // Only delete read notifications
+    }
+    
+    const result = await NotificationModel.deleteMany(query);
+    return result.deletedCount;
   }
 }

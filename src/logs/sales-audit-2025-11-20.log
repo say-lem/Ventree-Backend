@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-20T07:44:07.059Z","requestId":"1fa582b9-523d-4234-8fc2-97f1f024c170","action":"SALE_RECORDED","shopId":"69190875b6a9f12b93e6357b","performedBy":{"userId":"69190875b6a9f12b93e6357b","role":"staff"},"saleId":"691ec6c6aa09e90feb46034f","ip":"::1","details":{"itemName":"Purple hibiscus","quantity":5,"totalAmount":7500,"paymentMethod":"cash"}}

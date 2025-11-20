@@ -41,12 +41,8 @@ export const queryNotificationsValidation = [
       'low_stock',
       'out_of_stock',
       'sale_completed',
-      'inventory_updated',
       'staff_action',
-      'staff_created',
-      'staff_deleted',
       'expense_added',
-      'system_alert',
       'system',
       'custom',
     ])

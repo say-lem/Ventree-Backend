@@ -31,7 +31,7 @@ export const createItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -268,7 +268,7 @@ export const adjustStock = asyncHandler(async (req: AuthenticatedRequest, res: R
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }

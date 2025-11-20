@@ -1,27 +1,10 @@
 import { Schema, model, Document, Types } from 'mongoose';
 import { VectorClock } from '../utils/vector-clock.util';
-
-/**
- * Notification Types Enum
- * Single source of truth for notification types
- */
-export enum NotificationType {
-  LOW_STOCK = 'low_stock',
-  OUT_OF_STOCK = 'out_of_stock',
-  SALE_COMPLETED = 'sale_completed',
-  INVENTORY_UPDATED = 'inventory_updated',
-  STAFF_ACTION = 'staff_action',
-  STAFF_CREATED = 'staff_created',
-  STAFF_DELETED = 'staff_deleted',
-  EXPENSE_ADDED = 'expense_added',
-  SYSTEM_ALERT = 'system_alert',
-  SYSTEM = 'system',
-  CUSTOM = 'custom'
-}
+import { NotificationType } from '../types/notification-types';
 
 /**
  * Notification Document Interface
- * Aligns with the entity diagram and architecture document
+ * 
  */
 export interface INotification extends Document {
   shopId: Types.ObjectId;
@@ -98,6 +81,8 @@ const NotificationSchema = new Schema<INotification>(
 NotificationSchema.index({ shopId: 1, created_at: -1 });
 NotificationSchema.index({ shopId: 1, staffId: 1, isRead: 1 });
 NotificationSchema.index({ shopId: 1, type: 1, created_at: -1 });
+// Index for deduplication queries
+NotificationSchema.index({ shopId: 1, inventoryId: 1, type: 1, created_at: -1 });
 
 // Removed: Pre-save hook is redundant with timestamps option
 

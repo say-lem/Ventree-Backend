@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import app from "./app";
 import { redisConfig } from "./shared/config/redis.config";
 import { closeNotificationEmitter } from "./modules/notification/emitters/notification-emitter.instance";
+import { NotificationSocketIOHandler } from "./modules/notification/websockets/notification-socketio";
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "";
@@ -18,6 +19,9 @@ if (!MONGO_URI) {
 }
 
 const server = http.createServer(app);
+
+// Initialize Socket.IO for real-time notifications
+let socketIOHandler: NotificationSocketIOHandler | null = null;
 
 // Initialize Redis connections (non-blocking)
 // If Redis is not available, the app will still work but notifications won't be emitted via Redis
@@ -46,8 +50,17 @@ mongoose
     // Initialize Redis (non-blocking)
     await initializeRedis();
     
+    // Initialize Socket.IO for notifications
+    try {
+      socketIOHandler = new NotificationSocketIOHandler(server);
+      console.log("✅ Socket.IO notification server initialized");
+    } catch (error) {
+      console.warn("⚠️ Socket.IO initialization failed:", error);
+    }
+    
     server.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📡 WebSocket notifications available at ws://localhost:${PORT}/socket.io/notifications`);
     });
   })
   .catch((err) => {
@@ -62,6 +75,12 @@ const shutdown = async (signal: string) => {
       // Close MongoDB connection
       await mongoose.connection.close();
       console.log("🧹 MongoDB connection closed.");
+      
+      // Close Socket.IO connections
+      if (socketIOHandler) {
+        await socketIOHandler.close();
+        console.log("🧹 Socket.IO connections closed.");
+      }
       
       // Close Redis connections and notification emitter
       await closeNotificationEmitter();
