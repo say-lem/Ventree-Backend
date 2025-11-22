@@ -37,6 +37,10 @@ const staffSchema = new Schema<IStaff>(
       default: true,
       index: true,
     },
+    isOwner: {
+      type: Boolean,
+      default: false,
+    },
     lastLoginAt: {
       type: Date,
     },

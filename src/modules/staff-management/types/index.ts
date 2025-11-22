@@ -9,6 +9,7 @@ export interface IStaff extends Document {
   role: "cashier" | "manager" | "inventory" | "staff";
   isActive: boolean;
   createdAt: Date;
+  isOwner: boolean;
   updatedAt: Date;
   lastLoginAt?: Date;
   failedLoginAttempts?: number;
