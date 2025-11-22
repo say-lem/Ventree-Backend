@@ -13,6 +13,11 @@ export class StaffRepository {
     return await Staff.findById(staffId).select("+passwordHash");
   }
 
+  //Find staff by ID with OTP hash
+  async findByIdWithOTP(staffId: string): Promise<IStaff | null> {
+    return await Staff.findById(staffId).select("+otpHash");
+  }
+
    //Find staff by shop ID and phone number
   async findByShopAndPhone(
     shopId: string,
@@ -134,9 +139,7 @@ export class StaffRepository {
     return !!staff;
   }
 
-  /**
-   * Update last login time
-   */
+  // Update last login time
   async updateLastLogin(staffId: string): Promise<void> {
     await Staff.findByIdAndUpdate(staffId, {
       lastLoginAt: new Date(),

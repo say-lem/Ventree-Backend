@@ -1,5 +1,5 @@
 import Sale from "../models/sales";
-import { ISale, SalesQueryOptions } from "../types";
+import { ICreditPayment, ISale, RecordCreditPaymentInput, SalesQueryOptions,} from "../types";
 import { Types } from "mongoose";
 
 export class SaleRepository {
@@ -29,45 +29,57 @@ export class SaleRepository {
       soldBy,
       paymentMethod,
       includeRefunded = false,
+      isCredit,
+      creditStatus,
       page = 1,
       limit = 20,
       sortBy = "date",
       sortOrder = "desc",
     } = options;
-
+  
     const query: any = { shopId: new Types.ObjectId(shopId) };
-
+  
     // Date range filter
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = startDate;
       if (endDate) query.date.$lte = endDate;
     }
-
+  
     // Item filter
     if (itemId) {
       query.itemId = new Types.ObjectId(itemId);
     }
-
+  
     // Staff filter
     if (soldBy) {
       query.soldBy = new Types.ObjectId(soldBy);
     }
-
+  
     // Payment method filter
     if (paymentMethod) {
       query.paymentMethod = paymentMethod;
     }
-
+  
     // Refunded filter
     if (!includeRefunded) {
       query.refunded = false;
     }
-
+  
+    // Credit sale filter
+    if (typeof isCredit === "boolean") {
+      query.isCredit = isCredit;
+    }
+  
+    // Credit status filter
+    if (creditStatus) {
+      query.creditStatus = creditStatus;
+    }
+  
     const skip = (page - 1) * limit;
     const sort: any = {};
     sort[sortBy] = sortOrder === "asc" ? 1 : -1;
-
+  
     const [sales, total] = await Promise.all([
       Sale.find(query)
         .populate("soldBy", "staffName")
@@ -77,7 +89,7 @@ export class SaleRepository {
         .lean(),
       Sale.countDocuments(query),
     ]);
-
+  
     return {
       sales: sales as unknown as ISale[],
       total,
@@ -86,16 +98,12 @@ export class SaleRepository {
     };
   }
 
-  /**
-   * Update sale
-   */
+  // Update sale
   async update(saleId: string, updates: Partial<ISale>): Promise<ISale | null> {
     return await Sale.findByIdAndUpdate(saleId, updates, { new: true });
   }
 
-  /**
-   * Process refund
-   */
+  // Process refund
   async refund(
     saleId: string,
     refundedBy: string,
@@ -113,9 +121,7 @@ export class SaleRepository {
     );
   }
 
-  /**
-   * Get sales analytics
-   */
+  // Get sales analytics
   async getAnalytics(shopId: string, options: SalesQueryOptions = {}): Promise<any> {
     const { startDate, endDate, includeRefunded = false } = options;
 
@@ -265,9 +271,7 @@ export class SaleRepository {
     return result;
   }
 
-  /**
-   * Get total sales for a specific item
-   */
+  // Get total sales for a specific item
   async getTotalSalesByItem(itemId: string): Promise<number> {
     const result = await Sale.aggregate([
       {
@@ -287,9 +291,7 @@ export class SaleRepository {
     return result[0]?.totalQuantity || 0;
   }
 
-  /**
-   * Search sales
-   */
+  // Search sales
   async search(
     shopId: string,
     searchTerm: string,
@@ -311,10 +313,158 @@ export class SaleRepository {
     return { sales: sales as unknown as ISale[], total };
   }
 
-  /**
-   * Delete sale (soft delete by marking as refunded)
-   */
+  // Delete sale (soft delete by marking as refunded)
   async delete(saleId: string): Promise<void> {
     await Sale.findByIdAndDelete(saleId);
   }
+
+  // Find credit sales by shop
+async findCreditSales(
+  shopId: string,
+  options: SalesQueryOptions = {}
+): Promise<{ sales: ISale[]; total: number; page: number; pages: number }> {
+  const {
+    creditStatus,
+    customerPhone,
+    startDate,
+    endDate,
+    page = 1,
+    limit = 20,
+    sortBy = "date",
+    sortOrder = "desc",
+  } = options;
+
+  const query: any = {
+    shopId: new Types.ObjectId(shopId),
+    isCredit: true,
+    refunded: false,
+  };
+
+  if (creditStatus) query.creditStatus = creditStatus;
+  if (customerPhone) query.customerPhone = customerPhone;
+  if (startDate || endDate) {
+    query.date = {};
+    if (startDate) query.date.$gte = startDate;
+    if (endDate) query.date.$lte = endDate;
+  }
+
+  const skip = (page - 1) * limit;
+  const sort: any = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
+
+  const [sales, total] = await Promise.all([
+    Sale.find(query).skip(skip).limit(limit).sort(sort).lean(),
+    Sale.countDocuments(query),
+  ]);
+
+  return {
+    sales: sales as unknown as ISale[],
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  };
+}
+
+// Record credit payment
+async recordCreditPayment(
+  saleId: string,
+  payment: ICreditPayment
+): Promise<ISale | null> {
+  const sale = await Sale.findById(saleId);
+  if (!sale) return null;
+
+  const newAmountPaid = sale.amountPaid + payment.amount;
+  const newAmountOwed = sale.totalAmount - newAmountPaid;
+
+  let newStatus: "pending" | "partial" | "paid" = "pending";
+  if (newAmountOwed <= 0) {
+    newStatus = "paid";
+  } else if (newAmountPaid > 0) {
+    newStatus = "partial";
+  }
+
+  return await Sale.findByIdAndUpdate(
+    saleId,
+    {
+      $push: { payments: payment },
+      $set: {
+        amountPaid: newAmountPaid,
+        amountOwed: Math.max(0, newAmountOwed),
+        creditStatus: newStatus,
+      },
+    },
+    { new: true }
+  );
+}
+
+// Get credit sales summary
+async getCreditSalesSummary(shopId: string): Promise<any> {
+  const result = await Sale.aggregate([
+    {
+      $match: {
+        shopId: new Types.ObjectId(shopId),
+        isCredit: true,
+        refunded: false,
+      },
+    },
+    {
+      $group: {
+        _id: "$creditStatus",
+        count: { $sum: 1 },
+        totalAmount: { $sum: "$totalAmount" },
+        totalOwed: { $sum: "$amountOwed" },
+        totalPaid: { $sum: "$amountPaid" },
+      },
+    },
+  ]);
+
+  const summary = {
+    pending: { count: 0, totalAmount: 0, totalOwed: 0, totalPaid: 0 },
+    partial: { count: 0, totalAmount: 0, totalOwed: 0, totalPaid: 0 },
+    paid: { count: 0, totalAmount: 0, totalOwed: 0, totalPaid: 0 },
+    overall: { count: 0, totalAmount: 0, totalOwed: 0, totalPaid: 0 },
+  };
+
+  result.forEach((item: any) => {
+    summary[item._id as keyof typeof summary] = {
+      count: item.count,
+      totalAmount: item.totalAmount,
+      totalOwed: item.totalOwed,
+      totalPaid: item.totalPaid,
+    };
+    summary.overall.count += item.count;
+    summary.overall.totalAmount += item.totalAmount;
+    summary.overall.totalOwed += item.totalOwed;
+    summary.overall.totalPaid += item.totalPaid;
+  });
+
+  return summary;
+}
+
+// Get customer credit history
+async getCustomerCreditHistory(
+  shopId: string,
+  customerPhone: string
+): Promise<ISale[]> {
+  return await Sale.find({
+    shopId: new Types.ObjectId(shopId),
+    customerPhone,
+    isCredit: true,
+    refunded: false,
+  })
+    .sort({ date: -1 })
+    .lean() as unknown as ISale[];
+}
+
+// Get overdue credit sales
+async getOverdueCreditSales(shopId: string): Promise<ISale[]> {
+  return await Sale.find({
+    shopId: new Types.ObjectId(shopId),
+    isCredit: true,
+    creditStatus: { $in: ["pending", "partial"] },
+    dueDate: { $lt: new Date() },
+    refunded: false,
+  })
+    .sort({ dueDate: 1 })
+    .lean() as unknown as ISale[];
+}
 }

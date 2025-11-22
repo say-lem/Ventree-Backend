@@ -7,18 +7,25 @@ export interface ISale extends Document {
   itemName: string;
   itemCategory?: string;
   quantitySold: number;
-  costPrice: number; // For profit calculation
+  costPrice: number; 
   sellingPrice: number;
   discount?: number;
   taxAmount?: number;
   totalAmount: number;
   profitAmount: number;
-  soldBy: Types.ObjectId; // Reference to Staff
+  soldBy: Types.ObjectId;
   soldByName: string;
-  paymentMethod: "cash" | "card" | "mobile" | "bank_transfer";
+  paymentMethod: "cash" | "transfer" | "credit";
   transactionReference?: string;
   customerName?: string;
+  customerAddress?: string;
   customerPhone?: string;
+  isCredit: boolean;
+  creditStatus: "pending" | "partial" | "paid";
+  amountPaid: number;
+  amountOwed: number;
+  dueDate?: Date;
+  payments: ICreditPayment[];
   notes?: string;
   date: Date;
   refunded: boolean;
@@ -34,10 +41,12 @@ export interface RecordSaleInput {
   itemId: string;
   quantity: number;
   soldBy: string;
-  paymentMethod: "cash" | "card" | "mobile" | "bank_transfer";
+  paymentMethod: "cash" | "transfer" | "credit";
   discount?: number;
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
+  dueDate?: Date;
   notes?: string;
   transactionReference?: string;
 }
@@ -45,6 +54,8 @@ export interface RecordSaleInput {
 export interface UpdateSaleInput {
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
+  dueDate?: Date;
   notes?: string;
 }
 
@@ -60,9 +71,12 @@ export interface SalesQueryOptions {
   soldBy?: string;
   paymentMethod?: string;
   includeRefunded?: boolean;
+  isCredit?: boolean;
+  creditStatus?: "pending" | "partial" | "paid";
+  customerPhone?: string;
   page?: number;
   limit?: number;
-  sortBy?: "date" | "totalAmount" | "quantitySold";
+  sortBy?: string;
   sortOrder?: "asc" | "desc";
 }
 
@@ -107,7 +121,6 @@ export interface RequestMetadata {
   userShopId: string;
 }
 
-
 export interface InventoryItem {
   _id: string;
   name: string;
@@ -117,4 +130,22 @@ export interface InventoryItem {
   sellingPrice: number;
 }
 
+export interface RecordCreditPaymentInput {
+  saleId: string;
+  shopId: string;
+  amount: number;
+  paymentMethod: "cash" | "transfer";
+  receivedBy: string;  
+  transactionReference?: string;
+  notes?: string;
+}
 
+export interface ICreditPayment {
+  amount: number;
+  paymentMethod: "cash" | "transfer";
+  paymentDate: Date;
+  receivedBy: Types.ObjectId;
+  receivedByName: string;
+  transactionReference?: string;
+  notes?: string;
+}
