@@ -24,6 +24,7 @@ export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
   const requestId = crypto.randomUUID();
   const saleData = req.body;
+  console.log("Recording sale:", saleData);
 
   const sale = await salesService.recordSale(saleData, {
     requestId,

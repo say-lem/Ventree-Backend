@@ -31,7 +31,7 @@ export const createItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -96,7 +96,7 @@ export const getInventoryList = asyncHandler(async (req: AuthenticatedRequest, r
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -129,7 +129,7 @@ export const getItemById = asyncHandler(async (req: AuthenticatedRequest, res: R
   const item = await inventoryService.getItemById(itemId, shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -162,7 +162,7 @@ export const updateItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
   const item = await inventoryService.updateItem(itemId, shopId, updates, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -194,7 +194,7 @@ export const deleteItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
   await inventoryService.deleteItem(itemId, shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -230,7 +230,7 @@ export const restockItem = asyncHandler(async (req: AuthenticatedRequest, res: R
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -268,7 +268,7 @@ export const adjustStock = asyncHandler(async (req: AuthenticatedRequest, res: R
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -296,7 +296,7 @@ export const getLowStockItems = asyncHandler(async (req: AuthenticatedRequest, r
   const items = await inventoryService.getLowStockItems(shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -326,7 +326,7 @@ export const getOutOfStockItems = asyncHandler(async (req: AuthenticatedRequest,
   const items = await inventoryService.getOutOfStockItems(shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -360,7 +360,7 @@ export const getExpiringItems = asyncHandler(async (req: AuthenticatedRequest, r
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }
@@ -391,7 +391,7 @@ export const getAnalytics = asyncHandler(async (req: AuthenticatedRequest, res: 
   const analytics = await inventoryService.getAnalytics(shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -418,7 +418,7 @@ export const getCategories = asyncHandler(async (req: AuthenticatedRequest, res:
   const categories = await inventoryService.getCategories(shopId, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
@@ -451,7 +451,7 @@ export const getStockMovements = asyncHandler(async (req: AuthenticatedRequest, 
     {
       requestId,
       ip: req.ip || "unknown",
-      userId: req.user.profileId,
+      userId: req.user.shopId,
       userRole: req.user.role,
       userShopId: req.user.shopId,
     }

@@ -67,6 +67,7 @@ export const authenticate = (
       return;
     }
 
+    
     // Verify token
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
