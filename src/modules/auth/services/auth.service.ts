@@ -61,12 +61,31 @@ export const registerOwnerService = async ({
       isVerified: false,
     });
 
+    // 🔥 CREATE STAFF PROFILE FOR THE OWNER
+    let ownerStaffProfile;
+    try {
+      ownerStaffProfile = await Staff.create({
+        shopId: shop._id,
+        staffName: ownerName,
+        phoneNumber: phoneNumber,
+        passwordHash: passwordHash,
+        role: "manager",
+        isActive: true,
+        isOwner: true,
+      });
+    } catch (staffError) {
+      console.error("STAFF CREATION ERROR:", staffError);
+      await Shop.findByIdAndDelete(shop._id);
+      throw new InternalServerError("Failed to initialize owner staff profile.");
+    }
+
+
     // Try to send OTP, if it fails, delete the shop and throw error
     try {
       await sendOTP(phoneNumber, otp);
     } catch (sendError) {
-      // Rollback: delete the shop if OTP sending fails
       await Shop.findByIdAndDelete(shop._id);
+      await Staff.deleteOne({ _id: ownerStaffProfile._id });
       throw new InternalServerError("Failed to send OTP. Please try again.");
     }
 
@@ -125,7 +144,7 @@ export const verifyOtpService = async ({ shopName, phoneNumber, otp, ip, request
       const lockoutUntil = shop.otpExpiresAt
         ? new Date(shop.otpExpiresAt.getTime() + OTP_LOCKOUT_DURATION)
         : new Date(Date.now() + OTP_LOCKOUT_DURATION);
-      
+
       if (new Date() < lockoutUntil) {
         const waitTime = Math.ceil((lockoutUntil.getTime() - Date.now()) / 1000);
         throw new RateLimitError(
@@ -140,12 +159,12 @@ export const verifyOtpService = async ({ shopName, phoneNumber, otp, ip, request
 
     // Verify OTP
     const isValid = await verifyOTP(otp, shop.otpHash);
-    
+
     if (!isValid) {
       // Increment attempt counter
       shop.otpAttempts = (shop.otpAttempts || 0) + 1;
       await shop.save();
-      
+
       const remainingAttempts = MAX_OTP_ATTEMPTS - shop.otpAttempts;
       if (remainingAttempts > 0) {
         throw new ValidationError(
@@ -223,6 +242,12 @@ export const loginUserService = async ({ shopName, phoneNumber, password, ip, re
       if (await bcrypt.compare(password, shop.owner.passwordHash)) {
         isAuthenticated = true;
       }
+      // Fetch the owner's staff profile
+      const ownerStaffProfile = await Staff.findOne({
+        shopId: shop._id,
+        isOwner: true, // or use isOwnerStaff flag
+      });
+
     } else {
       const staff = await Staff.findOne({ shopId: shop._id, phoneNumber, isActive: true }).select(
         "+passwordHash"
@@ -245,11 +270,11 @@ export const loginUserService = async ({ shopName, phoneNumber, password, ip, re
       role === "owner"
         ? { shopId: shop._id, role: "owner", profileId: "owner" }
         : {
-            shopId: shop._id,
-            role: "staff",
-            profileId: staffData._id,
-            staffName: staffData.staffName,
-          };
+          shopId: shop._id,
+          role: "staff",
+          profileId: staffData._id,
+          staffName: staffData.staffName,
+        };
 
     const { accessToken, refreshToken } = generateTokens(payload);
 
@@ -274,21 +299,48 @@ export const loginUserService = async ({ shopName, phoneNumber, password, ip, re
       phoneNumber: shopRecord.phoneNumber,
     };
 
-    const staffResponse =
-      role === "staff" && staffData
-        ? (() => {
-            const staffRecord = staffData.toObject();
-            return {
-              id: staffRecord._id,
-              staffName: staffRecord.staffName,
-              phoneNumber: staffRecord.phoneNumber,
-              role: staffRecord.role,
-              isActive: staffRecord.isActive,
-              createdAt: staffRecord.createdAt,
-              updatedAt: staffRecord.updatedAt,
-            };
-          })()
-        : null;
+    let staffResponse: {
+      id: any;
+      staffName: string;
+      phoneNumber: string;
+      role: string;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null = null;
+    
+
+if (role === "staff" && staffData) {
+  // normal staff login
+  staffResponse = {
+    id: staffData._id,
+    staffName: staffData.staffName,
+    phoneNumber: staffData.phoneNumber,
+    role: staffData.role,
+    isActive: staffData.isActive,
+    createdAt: staffData.createdAt,
+    updatedAt: staffData.updatedAt,
+  };
+} else {
+  // owner login → return owner's staff profile
+  const ownerStaffProfile = await Staff.findOne({
+    shopId: shop._id,
+    isOwner: true, // this links owner → staff profile
+  });
+
+  if (ownerStaffProfile) {
+    staffResponse = {
+      id: ownerStaffProfile._id,
+      staffName: ownerStaffProfile.staffName,
+      phoneNumber: ownerStaffProfile.phoneNumber,
+      role: ownerStaffProfile.role,
+      isActive: ownerStaffProfile.isActive,
+      createdAt: ownerStaffProfile.createdAt,
+      updatedAt: ownerStaffProfile.updatedAt,
+    };
+  }
+}
+
 
     await logAuditEvent({
       requestId: requestId || crypto.randomUUID(),
@@ -382,7 +434,7 @@ export const resendOtpService = async ({ shopName, phoneNumber, ip, requestId })
 
     const otp = generateOTP();
     const otpHash = await hashOTP(otp);
-    
+
     // Update shop with new OTP and reset attempts
     shop.otpHash = otpHash;
     shop.otpExpiresAt = new Date(Date.now() + OTP_EXPIRY);

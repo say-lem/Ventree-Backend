@@ -20,6 +20,8 @@ import {
   RequestMetadata,
   ISale,
   SalesAnalytics,
+  RecordCreditPaymentInput,
+  ICreditPayment,
 } from "../types";
 
 export class SalesService {
@@ -35,9 +37,7 @@ export class SalesService {
     this.staffRepository = new StaffRepository();
   }
 
-  /**
-   * Validate shop ownership/access
-   */
+  // Validate shop ownership/access
   private async validateShopAccess(
     shopId: string,
     userShopId: string,
@@ -55,9 +55,7 @@ export class SalesService {
     }
   }
 
-  /**
-   * Record new sale
-   */
+  // Record new sale
   async recordSale(input: RecordSaleInput, metadata: RequestMetadata): Promise<ISale> {
     const {
       shopId,
@@ -68,6 +66,8 @@ export class SalesService {
       discount = 0,
       customerName,
       customerPhone,
+      customerAddress,
+      dueDate,
       notes,
       transactionReference,
     } = input;
@@ -76,9 +76,18 @@ export class SalesService {
     // Validate shop access
     await this.validateShopAccess(shopId, userShopId, userRole);
 
+    // Validate credit sale requirements
+    const isCredit = paymentMethod === "credit";
+    if (isCredit) {
+      if (!customerName || !customerPhone) {
+        throw new ValidationError(
+          "Customer name and phone number are required for credit sales"
+        );
+      }
+    }
+
     // Validate discount
     if (discount && !validateDiscount(discount, 50)) {
-      // Max 50% discount
       throw new ValidationError("Discount must be between 0 and 50 percent");
     }
 
@@ -96,26 +105,12 @@ export class SalesService {
 
     // Check stock availability
     if (quantity > item.availableQuantity) {
-      await logSalesAuditEvent({
-        requestId,
-        action: "SALE_INSUFFICIENT_STOCK",
-        shopId,
-        performedBy: { userId, role: userRole },
-        ip,
-        details: {
-          itemId,
-          itemName: item.name,
-          requested: quantity,
-          available: item.availableQuantity,
-        },
-      });
-
       throw new ValidationError(
-        `Insufficient stock available. Requested: ${quantity}, Available: ${item.availableQuantity}`
+        `Insufficient stock. Requested: ${quantity}, Available: ${item.availableQuantity}`
       );
     }
 
-    // Verify staff exists and belongs to shop
+    // Verify staff
     const staff = await this.staffRepository.findById(soldBy);
     if (!staff) {
       throw new NotFoundError("Staff member not found");
@@ -130,12 +125,12 @@ export class SalesService {
       costPrice: item.costPrice,
       sellingPrice: item.sellingPrice,
       discount,
-      taxRate: 0, // Can be configured per shop
+      taxRate: 0,
     });
 
-    // Reduce stock first (atomic operation)
+    // Reduce stock
     try {
-      await this.inventoryRepository.reduceStock(itemId, quantity);
+      await this.inventoryRepository.reduceStock(itemId, quantity, soldBy, staff.staffName);
     } catch (error) {
       throw new InternalServerError("Failed to update inventory. Please try again.");
     }
@@ -161,14 +156,23 @@ export class SalesService {
         transactionReference,
         customerName,
         customerPhone,
+        customerAddress,
         notes,
         date: new Date(),
         refunded: false,
+
+        // Credit sale fields
+        isCredit,
+        creditStatus: isCredit ? "pending" : "paid",
+        amountPaid: isCredit ? 0 : calculations.totalAmount,
+        amountOwed: isCredit ? calculations.totalAmount : 0,
+        dueDate: isCredit ? (dueDate || this.getDefaultDueDate()) : undefined,
+        payments: [],
       });
 
       await logSalesAuditEvent({
         requestId,
-        action: "SALE_RECORDED",
+        action: isCredit ? "CREDIT_SALE_RECORDED" : "SALE_RECORDED",
         shopId,
         performedBy: { userId, role: userRole },
         saleId: sale._id.toString(),
@@ -178,20 +182,222 @@ export class SalesService {
           quantity,
           totalAmount: calculations.totalAmount,
           paymentMethod,
+          isCredit,
+          customerName: isCredit ? customerName : undefined,
         },
       });
 
       return sale;
     } catch (error) {
-      // Rollback stock if sale creation fails
       await this.inventoryRepository.restoreStock(itemId, quantity);
       throw error;
     }
   }
 
+  // Get default due date (30 days from now)
+  private getDefaultDueDate(): Date {
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    return date;
+  }
+
+  // Record credit payment
+
+  async recordCreditPayment(
+    input: RecordCreditPaymentInput,
+    metadata: RequestMetadata
+  ): Promise<ISale> {
+    const { saleId, shopId, amount, paymentMethod, receivedBy, transactionReference, notes } = input;
+    const { requestId, userId, userRole, ip, userShopId } = metadata;
+
+    await this.validateShopAccess(shopId, userShopId, userRole);
+
+    // Find sale
+    const sale = await this.saleRepository.findById(saleId);
+    if (!sale) {
+      throw new NotFoundError("Sale not found");
+    }
+
+    // Verify sale belongs to shop
+    if (sale.shopId.toString() !== shopId) {
+      throw new AuthorizationError("Sale does not belong to this shop");
+    }
+
+    // Verify it's a credit sale
+    if (!sale.isCredit) {
+      throw new ValidationError("This is not a credit sale");
+    }
+
+    // Verify not fully paid
+    if (sale.creditStatus === "paid") {
+      throw new ValidationError("This credit sale has already been fully paid");
+    }
+
+    // Verify not refunded
+    if (sale.refunded) {
+      throw new ValidationError("Cannot record payment for a refunded sale");
+    }
+
+    // Validate payment amount
+    if (amount <= 0) {
+      throw new ValidationError("Payment amount must be greater than 0");
+    }
+    if (amount > sale.amountOwed) {
+      throw new ValidationError(
+        `Payment amount (${amount}) exceeds amount owed (${sale.amountOwed})`
+      );
+    }
+
+    // Verify staff
+    const staff = await this.staffRepository.findById(receivedBy.toString());
+    if (!staff) {
+      throw new NotFoundError("Staff member not found");
+    }
+    if (staff.shopId.toString() !== shopId) {
+      throw new AuthorizationError("Staff member does not belong to this shop");
+    }
+
+    // Record payment
+    const payment: ICreditPayment = {
+      amount,
+      paymentMethod,
+      paymentDate: new Date(),
+      receivedBy: new Types.ObjectId(receivedBy),
+      receivedByName: staff.staffName,
+      transactionReference,
+      notes,
+    };
+
+    const updatedSale = await this.saleRepository.recordCreditPayment(saleId, payment as ICreditPayment);
+
+    if (!updatedSale) {
+      throw new NotFoundError("Sale not found during payment recording");
+    }
+
+    await logSalesAuditEvent({
+      requestId,
+      action: "CREDIT_PAYMENT_RECORDED",
+      shopId,
+      performedBy: { userId, role: userRole },
+      saleId,
+      ip,
+      details: {
+        amount,
+        paymentMethod,
+        previousAmountOwed: sale.amountOwed,
+        newAmountOwed: updatedSale.amountOwed,
+        newStatus: updatedSale.creditStatus,
+      },
+    });
+
+    return updatedSale;
+  }
+
   /**
-   * Get sales list for a shop
+   * Get credit sales list
    */
+  async getCreditSales(
+    shopId: string,
+    options: SalesQueryOptions,
+    metadata: RequestMetadata
+  ): Promise<{ sales: ISale[]; total: number; page: number; pages: number }> {
+    const { requestId, userId, userRole, userShopId } = metadata;
+
+    await this.validateShopAccess(shopId, userShopId, userRole);
+
+    const result = await this.saleRepository.findCreditSales(shopId, options);
+
+    await logSalesAuditEvent({
+      requestId,
+      action: "CREDIT_SALES_VIEWED",
+      shopId,
+      performedBy: { userId, role: userRole },
+      details: { count: result.sales.length, filters: options },
+    });
+
+    return result;
+  }
+
+  // Get credit sales summary
+  async getCreditSalesSummary(
+    shopId: string,
+    metadata: RequestMetadata
+  ): Promise<any> {
+    const { requestId, userId, userRole, userShopId } = metadata;
+
+    await this.validateShopAccess(shopId, userShopId, userRole);
+
+    const summary = await this.saleRepository.getCreditSalesSummary(shopId);
+
+    await logSalesAuditEvent({
+      requestId,
+      action: "CREDIT_SUMMARY_VIEWED",
+      shopId,
+      performedBy: { userId, role: userRole },
+    });
+
+    return summary;
+  }
+
+  // Get overdue credit sales
+  async getOverdueCreditSales(
+    shopId: string,
+    metadata: RequestMetadata
+  ): Promise<ISale[]> {
+    const { requestId, userId, userRole, userShopId } = metadata;
+
+    await this.validateShopAccess(shopId, userShopId, userRole);
+
+    const overdue = await this.saleRepository.getOverdueCreditSales(shopId);
+
+    await logSalesAuditEvent({
+      requestId,
+      action: "OVERDUE_CREDITS_VIEWED",
+      shopId,
+      performedBy: { userId, role: userRole },
+      details: { count: overdue.length },
+    });
+
+    return overdue;
+  }
+
+  // Get customer credit history
+  async getCustomerCreditHistory(
+    shopId: string,
+    customerPhone: string,
+    metadata: RequestMetadata
+  ): Promise<{ sales: ISale[]; summary: any }> {
+    const { requestId, userId, userRole, userShopId } = metadata;
+
+    await this.validateShopAccess(shopId, userShopId, userRole);
+
+    const sales = await this.saleRepository.getCustomerCreditHistory(shopId, customerPhone);
+
+    // Calculate customer summary
+    const summary = sales.reduce(
+      (acc, sale) => {
+        acc.totalTransactions += 1;
+        acc.totalAmount += sale.totalAmount;
+        acc.totalPaid += sale.amountPaid;
+        acc.totalOwed += sale.amountOwed;
+        if (sale.creditStatus !== "paid") acc.pendingCount += 1;
+        return acc;
+      },
+      { totalTransactions: 0, totalAmount: 0, totalPaid: 0, totalOwed: 0, pendingCount: 0 }
+    );
+
+    await logSalesAuditEvent({
+      requestId,
+      action: "CUSTOMER_CREDIT_HISTORY_VIEWED",
+      shopId,
+      performedBy: { userId, role: userRole },
+      details: { customerPhone, totalOwed: summary.totalOwed },
+    });
+
+    return { sales, summary };
+  }
+
+  // Get sales list for a shop
   async getSalesList(
     shopId: string,
     options: SalesQueryOptions,
@@ -215,9 +421,7 @@ export class SalesService {
     return result;
   }
 
-  /**
-   * Get single sale by ID
-   */
+  // Get single sale by ID
   async getSaleById(
     saleId: string,
     shopId: string,
@@ -250,9 +454,7 @@ export class SalesService {
     return sale;
   }
 
-  /**
-   * Update sale details (limited fields)
-   */
+  // Update sale details (limited fields)
   async updateSale(
     saleId: string,
     shopId: string,
@@ -309,9 +511,7 @@ export class SalesService {
     return updatedSale;
   }
 
-  /**
-   * Refund a sale
-   */
+  // Refund a sale
   async refundSale(
     saleId: string,
     shopId: string,
@@ -372,7 +572,9 @@ export class SalesService {
     // Restore stock
     await this.inventoryRepository.restoreStock(
       sale.itemId.toString(),
-      sale.quantitySold
+      sale.quantitySold,
+      refundedBy,
+      refundingStaff.staffName
     );
 
     await logSalesAuditEvent({
@@ -394,9 +596,7 @@ export class SalesService {
     return refundedSale;
   }
 
-  /**
-   * Get sales analytics
-   */
+  // Get sales analytics
   async getSalesAnalytics(
     shopId: string,
     options: SalesQueryOptions,
@@ -434,9 +634,7 @@ export class SalesService {
     };
   }
 
-  /**
-   * Search sales
-   */
+  // Search sales
   async searchSales(
     shopId: string,
     searchTerm: string,
@@ -462,9 +660,7 @@ export class SalesService {
     return result;
   }
 
-  /**
-   * Get sales by date range for reporting
-   */
+  // Get sales by date range for reporting
   async getSalesReport(
     shopId: string,
     startDate: Date,
@@ -514,9 +710,7 @@ export class SalesService {
     };
   }
 
-  /**
-   * Delete sale (hard delete - owner only)
-   */
+  // Delete sale (hard delete - owner only)
   async deleteSale(
     saleId: string,
     shopId: string,
@@ -570,9 +764,7 @@ export class SalesService {
     });
   }
 
-  /**
-   * Get top performing items
-   */
+  // Get top performing items
   async getTopPerformingItems(
     shopId: string,
     limit: number,
@@ -592,9 +784,7 @@ export class SalesService {
     return analytics.topSellingItems.slice(0, limit);
   }
 
-  /**
-   * Get staff performance
-   */
+  // Get staff performance
   async getStaffPerformance(
     shopId: string,
     startDate?: Date,

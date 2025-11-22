@@ -11,6 +11,11 @@ import {
   generateSalesReport,
   getTopPerformingItems,
   getStaffPerformance,
+  recordCreditPayment,
+  getCreditSales,
+  getCreditSalesSummary,
+  getOverdueCreditSales,
+  getCustomerCreditHistory,
 } from "../controllers/sales.controller";
 import {
   recordSaleValidation,
@@ -19,6 +24,9 @@ import {
   shopIdValidation,
   saleIdValidation,
   getSalesValidation,
+  recordCreditPaymentValidation,
+  getCreditSalesValidation,
+  customerPhoneValidation,
   analyticsValidation,
   searchSalesValidation,
 } from "../validators/sale.validator";
@@ -34,13 +42,18 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// Record new sale (both owner and staff can record sales)
+// Base sales route
 router.post("/", recordSaleValidation, recordSale);
 
-// Get sales list with filters
-router.get("/:shopId", getSalesValidation, verifyShopAccess, getSalesList);
+// Sales list with filters
+router.get(
+  "/:shopId/list",
+  getSalesValidation,
+  verifyShopAccess,
+  getSalesList
+);
 
-// Get sales analytics (owner and staff)
+// Analytics
 router.get(
   "/:shopId/analytics",
   analyticsValidation,
@@ -49,7 +62,7 @@ router.get(
   getSalesAnalytics
 );
 
-// Generate sales report (owner only)
+// Reports (owner only)
 router.get(
   "/:shopId/report",
   shopIdValidation,
@@ -58,7 +71,7 @@ router.get(
   generateSalesReport
 );
 
-// Search sales
+// Search
 router.get(
   "/:shopId/search",
   searchSalesValidation,
@@ -66,7 +79,7 @@ router.get(
   searchSales
 );
 
-// Get top performing items
+// Top performing items
 router.get(
   "/:shopId/top-items",
   shopIdValidation,
@@ -74,7 +87,7 @@ router.get(
   getTopPerformingItems
 );
 
-// Get staff performance
+// Staff performance (owner only)
 router.get(
   "/:shopId/staff-performance",
   shopIdValidation,
@@ -83,9 +96,43 @@ router.get(
   getStaffPerformance
 );
 
-// Get single sale by ID
+
+// Get all credit sales
 router.get(
-  "/:shopId/:saleId",
+  "/:shopId/credit",
+  getCreditSalesValidation,
+  verifyShopAccess,
+  getCreditSales
+);
+
+// Credit sales summary
+router.get(
+  "/:shopId/credit/summary",
+  shopIdValidation,
+  verifyShopAccess,
+  getCreditSalesSummary
+);
+
+// Overdue credit sales
+router.get(
+  "/:shopId/credit/overdue",
+  shopIdValidation,
+  verifyShopAccess,
+  getOverdueCreditSales
+);
+
+// Customer credit history
+router.get(
+  "/:shopId/credit/customer/:customerPhone",
+  customerPhoneValidation,
+  verifyShopAccess,
+  getCustomerCreditHistory
+);
+
+
+// Get single sale
+router.get(
+  "/:shopId/sale/:saleId",
   shopIdValidation,
   saleIdValidation,
   verifyShopAccess,
@@ -94,7 +141,7 @@ router.get(
 
 // Update sale (owner only)
 router.put(
-  "/:shopId/:saleId",
+  "/:shopId/sale/:saleId",
   updateSaleValidation,
   verifyShopAccess,
   ownerOnly,
@@ -103,16 +150,24 @@ router.put(
 
 // Refund sale (owner only)
 router.post(
-  "/:shopId/:saleId/refund",
+  "/:shopId/sale/:saleId/refund",
   refundSaleValidation,
   verifyShopAccess,
   ownerOnly,
   refundSale
 );
 
+// Record credit payment
+router.post(
+  "/:shopId/sale/:saleId/payment",
+  recordCreditPaymentValidation,
+  verifyShopAccess,
+  recordCreditPayment
+);
+
 // Delete sale (owner only)
 router.delete(
-  "/:shopId/:saleId",
+  "/:shopId/sale/:saleId",
   shopIdValidation,
   saleIdValidation,
   verifyShopAccess,

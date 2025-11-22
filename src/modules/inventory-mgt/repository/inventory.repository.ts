@@ -58,7 +58,7 @@ export class InventoryRepository {
     const {
       category,
       subCategory,
-      isActive = true,
+      isActive ,
       isLowStock,
       isOutOfStock,
       search,
@@ -84,17 +84,17 @@ export class InventoryRepository {
     }
 
     // Active filter
-    if (isActive !== undefined) {
+    if (typeof isActive === "boolean") {
       query.isActive = isActive;
     }
-
-    // Low stock filter
-    if (isLowStock !== undefined) {
+  
+    // Low stock filter 
+    if (typeof isLowStock === "boolean") {
       query.isLowStock = isLowStock;
     }
-
-    // Out of stock filter
-    if (isOutOfStock !== undefined) {
+  
+    // Out of stock filter 
+    if (typeof isOutOfStock === "boolean") {
       query.isOutOfStock = isOutOfStock;
     }
 

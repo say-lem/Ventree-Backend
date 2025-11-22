@@ -1,5 +1,6 @@
 import { body, param, query } from "express-validator";
 
+// Record sale - updated to include credit sales
 export const recordSaleValidation = [
   body("shopId")
     .trim()
@@ -26,22 +27,65 @@ export const recordSaleValidation = [
     .trim()
     .notEmpty()
     .withMessage("Payment method is required")
-    .isIn(["cash", "card", "mobile", "bank_transfer"])
-    .withMessage("Invalid payment method. Must be: cash, card, mobile, or bank_transfer"),
+    .isIn(["cash", "transfer", "credit"])
+    .withMessage("Invalid payment method. Must be: cash, transfer, or credit"),
   body("discount")
     .optional()
     .isFloat({ min: 0, max: 50 })
     .withMessage("Discount must be between 0 and 50 percent"),
+  
+  // Customer name - required for credit sales
   body("customerName")
+    .if(body("paymentMethod").equals("credit"))
+    .trim()
+    .notEmpty()
+    .withMessage("Customer name is required for credit sales")
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Customer name must be between 2 and 100 characters"),
+  body("customerName")
+    .if(body("paymentMethod").not().equals("credit"))
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage("Customer name must be between 2 and 100 characters"),
+  
+  // Customer phone - required for credit sales
   body("customerPhone")
+    .if(body("paymentMethod").equals("credit"))
+    .trim()
+    .notEmpty()
+    .withMessage("Customer phone is required for credit sales")
+    .matches(/^\+?[0-9]{10,15}$/)
+    .withMessage("Invalid phone number format"),
+  body("customerPhone")
+    .if(body("paymentMethod").not().equals("credit"))
     .optional()
     .trim()
-    .matches(/^\+?[1-9]\d{9,14}$/)
+    .matches(/^\+?[0-9]{10,15}$/)
     .withMessage("Invalid phone number format"),
+  
+  // Customer address - optional but recommended for credit sales
+  body("customerAddress")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Customer address cannot exceed 500 characters"),
+  
+  // Due date - optional for credit sales
+  body("dueDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Invalid due date format. Use ISO 8601 format")
+    .custom((value) => {
+      const dueDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (dueDate < today) {
+        throw new Error("Due date cannot be in the past");
+      }
+      return true;
+    }),
+  
   body("notes")
     .optional()
     .trim()
@@ -54,7 +98,14 @@ export const recordSaleValidation = [
     .withMessage("Transaction reference cannot exceed 100 characters"),
 ];
 
+// Update sale
 export const updateSaleValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
   param("saleId")
     .trim()
     .notEmpty()
@@ -69,8 +120,17 @@ export const updateSaleValidation = [
   body("customerPhone")
     .optional()
     .trim()
-    .matches(/^\+?[1-9]\d{9,14}$/)
+    .matches(/^\+?[0-9]{10,15}$/)
     .withMessage("Invalid phone number format"),
+  body("customerAddress")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Customer address cannot exceed 500 characters"),
+  body("dueDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Invalid due date format"),
   body("notes")
     .optional()
     .trim()
@@ -78,7 +138,14 @@ export const updateSaleValidation = [
     .withMessage("Notes cannot exceed 500 characters"),
 ];
 
+// Refund sale
 export const refundSaleValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
   param("saleId")
     .trim()
     .notEmpty()
@@ -99,6 +166,7 @@ export const refundSaleValidation = [
     .withMessage("Invalid staff ID format"),
 ];
 
+// Shop ID validation
 export const shopIdValidation = [
   param("shopId")
     .trim()
@@ -108,6 +176,7 @@ export const shopIdValidation = [
     .withMessage("Invalid shop ID format"),
 ];
 
+// Sale ID validation
 export const saleIdValidation = [
   param("saleId")
     .trim()
@@ -117,6 +186,7 @@ export const saleIdValidation = [
     .withMessage("Invalid sale ID format"),
 ];
 
+// Get sales list
 export const getSalesValidation = [
   param("shopId")
     .trim()
@@ -142,12 +212,20 @@ export const getSalesValidation = [
     .withMessage("Invalid staff ID format"),
   query("paymentMethod")
     .optional()
-    .isIn(["cash", "card", "mobile", "bank_transfer"])
+    .isIn(["cash", "transfer", "credit"])
     .withMessage("Invalid payment method"),
   query("includeRefunded")
     .optional()
     .isBoolean()
     .withMessage("includeRefunded must be a boolean"),
+  query("isCredit")
+    .optional()
+    .isBoolean()
+    .withMessage("isCredit must be a boolean"),
+  query("creditStatus")
+    .optional()
+    .isIn(["pending", "partial", "paid"])
+    .withMessage("Invalid credit status. Must be: pending, partial, or paid"),
   query("page")
     .optional()
     .isInt({ min: 1 })
@@ -158,7 +236,7 @@ export const getSalesValidation = [
     .withMessage("Limit must be between 1 and 100"),
   query("sortBy")
     .optional()
-    .isIn(["date", "totalAmount", "quantitySold"])
+    .isIn(["date", "totalAmount", "quantitySold", "amountOwed", "dueDate"])
     .withMessage("Invalid sort field"),
   query("sortOrder")
     .optional()
@@ -166,6 +244,7 @@ export const getSalesValidation = [
     .withMessage("Sort order must be asc or desc"),
 ];
 
+// Analytics validation
 export const analyticsValidation = [
   param("shopId")
     .trim()
@@ -187,6 +266,7 @@ export const analyticsValidation = [
     .withMessage("includeRefunded must be a boolean"),
 ];
 
+// Search sales
 export const searchSalesValidation = [
   param("shopId")
     .trim()
@@ -208,4 +288,150 @@ export const searchSalesValidation = [
     .optional()
     .isInt({ min: 1, max: 100 })
     .withMessage("Limit must be between 1 and 100"),
+];
+
+// Record credit payment
+export const recordCreditPaymentValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
+  param("saleId")
+    .trim()
+    .notEmpty()
+    .withMessage("Sale ID is required")
+    .isMongoId()
+    .withMessage("Invalid sale ID format"),
+  body("amount")
+    .notEmpty()
+    .withMessage("Payment amount is required")
+    .isFloat({ min: 0.01 })
+    .withMessage("Payment amount must be greater than 0"),
+  body("paymentMethod")
+    .trim()
+    .notEmpty()
+    .withMessage("Payment method is required")
+    .isIn(["cash", "transfer"])
+    .withMessage("Invalid payment method. Must be: cash, or transfer"),
+  body("receivedBy")
+    .trim()
+    .notEmpty()
+    .withMessage("Received by is required")
+    .isMongoId()
+    .withMessage("Invalid staff ID format"),
+  body("transactionReference")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Transaction reference cannot exceed 100 characters"),
+  body("notes")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Notes cannot exceed 500 characters"),
+];
+
+// Get credit sales list
+export const getCreditSalesValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
+  query("creditStatus")
+    .optional()
+    .isIn(["pending", "partial", "paid"])
+    .withMessage("Invalid credit status. Must be: pending, partial, or paid"),
+  query("customerPhone")
+    .optional()
+    .trim()
+    .matches(/^\+?[0-9]{10,15}$/)
+    .withMessage("Invalid phone number format"),
+  query("startDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Invalid start date format"),
+  query("endDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Invalid end date format"),
+  query("overdue")
+    .optional()
+    .isBoolean()
+    .withMessage("overdue must be a boolean"),
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer"),
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Limit must be between 1 and 100"),
+  query("sortBy")
+    .optional()
+    .isIn(["date", "totalAmount", "amountOwed", "dueDate", "customerName"])
+    .withMessage("Invalid sort field"),
+  query("sortOrder")
+    .optional()
+    .isIn(["asc", "desc"])
+    .withMessage("Sort order must be asc or desc"),
+];
+
+// Customer phone validation (for credit history lookup)
+export const customerPhoneValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
+  param("customerPhone")
+    .trim()
+    .notEmpty()
+    .withMessage("Customer phone is required")
+    .matches(/^\+?[0-9]{10,15}$/)
+    .withMessage("Invalid phone number format"),
+];
+
+// Update credit sale (update due date, customer info)
+export const updateCreditSaleValidation = [
+  param("shopId")
+    .trim()
+    .notEmpty()
+    .withMessage("Shop ID is required")
+    .isMongoId()
+    .withMessage("Invalid shop ID format"),
+  param("saleId")
+    .trim()
+    .notEmpty()
+    .withMessage("Sale ID is required")
+    .isMongoId()
+    .withMessage("Invalid sale ID format"),
+  body("customerName")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Customer name must be between 2 and 100 characters"),
+  body("customerPhone")
+    .optional()
+    .trim()
+    .matches(/^\+?[0-9]{10,15}$/)
+    .withMessage("Invalid phone number format"),
+  body("customerAddress")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Customer address cannot exceed 500 characters"),
+  body("dueDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Invalid due date format"),
+  body("notes")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Notes cannot exceed 500 characters"),
 ];
