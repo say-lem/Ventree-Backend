@@ -353,15 +353,15 @@ export class NotificationSocketIOHandler {
       }
     }
 
-    // Remove from shop connections
-    const shopConnections = this.shopConnections.get(connection.shopId);
-    if (shopConnections) {
-      shopConnections.delete(socketId);
-      if (shopConnections.size === 0) {
-        this.shopConnections.delete(connection.shopId);
-        void this.unsubscribeFromShop(connection.shopId);
+      // Remove from shop connections
+      const shopConnections = this.shopConnections.get(connection.shopId);
+      if (shopConnections) {
+        shopConnections.delete(socketId);
+        if (shopConnections.size === 0) {
+          this.shopConnections.delete(connection.shopId);
+          void this.unsubscribeFromShop(connection.shopId);
+        }
       }
-    }
 
     // Remove connection
     this.connections.delete(socketId);

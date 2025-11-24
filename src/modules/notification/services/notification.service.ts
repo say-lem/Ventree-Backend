@@ -99,8 +99,8 @@ export class NotificationService {
         console.log(`[NotificationService] Duplicate ${type} notification suppressed for inventory ${inventoryId}. Last sent ${minutesAgo} minutes ago.`);
         
         // Return the recent notification instead of creating a duplicate
-        // Still emit it to Redis in case new clients connected after the original
-        await this.emitNotification(recentNotification, shopId, recipientType, recentNotification.staffId);
+        // Do not re-emit to prevent double delivery to clients who already received it
+        // Clients connecting after the original will fetch it via getNotifications API
         return recentNotification;
       }
     }

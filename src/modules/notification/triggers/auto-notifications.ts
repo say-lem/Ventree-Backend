@@ -1,15 +1,17 @@
 import { NotificationService } from '../services/notification.service';
 import { getNotificationService } from '../services/notification.service.instance';
+import { NotificationSettingsService } from '../services/notification-settings.service';
 import { NotificationType } from '../types/notification-types';
 import { NotificationTemplateUtil } from '../utils/notification-template.util';
 import { TokenPayload } from '../../../shared/middleware/auth.middleware';
 
 /**
  * Auto Notification Triggers
- * Stubs for automatic notifications that will be integrated with other services
+ * Handles automatic notifications with settings-based filtering
  */
 export class AutoNotificationTriggers {
   private static notificationService: NotificationService | null = null;
+  private static settingsService: NotificationSettingsService = new NotificationSettingsService();
   private static readonly SYSTEM_PROFILE_PREFIX = 'system-profile';
   private static readonly SYSTEM_USER_ID_PREFIX = 'system-user';
 
@@ -50,7 +52,7 @@ export class AutoNotificationTriggers {
 
   /**
    * Trigger low stock notification
-   * TODO: Integrate with InventoryService
+   * Checks settings before sending
    */
   static async onLowStock(
     inventoryId: string,
@@ -62,6 +64,14 @@ export class AutoNotificationTriggers {
     authContext?: TokenPayload
   ): Promise<void> {
     try {
+      // Check if low stock notifications are enabled
+      const isEnabled = await this.settingsService.isNotificationEnabled(shopId, 'low_stock');
+      
+      if (!isEnabled) {
+        console.log(`[AutoNotificationTriggers.onLowStock] Skipped - low stock notifications disabled for shop ${shopId}`);
+        return;
+      }
+
       const data = {
         productName,
         quantity,
@@ -94,7 +104,7 @@ export class AutoNotificationTriggers {
 
   /**
    * Trigger out of stock notification
-   * TODO: Integrate with InventoryService
+   * Checks settings before sending
    */
   static async onOutOfStock(
     inventoryId: string,
@@ -103,6 +113,14 @@ export class AutoNotificationTriggers {
     authContext?: TokenPayload
   ): Promise<void> {
     try {
+      // Check if out of stock notifications are enabled
+      const isEnabled = await this.settingsService.isNotificationEnabled(shopId, 'out_of_stock');
+      
+      if (!isEnabled) {
+        console.log(`[AutoNotificationTriggers.onOutOfStock] Skipped - out of stock notifications disabled for shop ${shopId}`);
+        return;
+      }
+
       const data = {
         productName,
         inventoryId,
@@ -114,7 +132,7 @@ export class AutoNotificationTriggers {
 
       await this.getNotificationService().createNotification({
         shopId,
-        recipientType: 'all',
+        recipientType: 'owner',
         message,
         type: NotificationType.OUT_OF_STOCK,
         inventoryId,
@@ -132,7 +150,7 @@ export class AutoNotificationTriggers {
 
   /**
    * Trigger sale completion notification
-   * TODO: Integrate with SalesService
+   * Checks settings before sending
    */
   static async onSaleCompleted(
     saleId: string,
@@ -145,6 +163,14 @@ export class AutoNotificationTriggers {
     authContext?: TokenPayload
   ): Promise<void> {
     try {
+      // Check if sale completed notifications are enabled
+      const isEnabled = await this.settingsService.isNotificationEnabled(shopId, 'sale_completed');
+      
+      if (!isEnabled) {
+        console.log(`[AutoNotificationTriggers.onSaleCompleted] Skipped - sale completed notifications disabled for shop ${shopId}`);
+        return;
+      }
+
       const data = {
         saleId,
         itemCount,

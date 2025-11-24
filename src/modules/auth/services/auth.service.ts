@@ -9,6 +9,7 @@ import { logAuditEvent } from "../utils/auditLogger";
 import { checkRateLimit, checkOTPCooldown, getLoginAttemptsStore, resetRateLimit } from "../utils/rateLimit";
 import { generateTokens } from "../utils/tokens";
 import { constantTimeCompare } from "../utils/cryptoUtils";
+import { NotificationSettingsService } from "../../notification/services/notification-settings.service";
 import {
   RateLimitError,
   ConflictError,
@@ -165,6 +166,16 @@ export const verifyOtpService = async ({ shopName, phoneNumber, otp, ip, request
     shop.otpExpiresAt = undefined;
     shop.otpAttempts = 0;
     await shop.save();
+
+    // Create default notification settings for the shop
+    try {
+      const settingsService = new NotificationSettingsService();
+      await settingsService.createDefaultSettings(shop.id);
+      console.log(`[AuthService] Created default notification settings for shop ${shop.id}`);
+    } catch (settingsError) {
+      // Log but don't fail verification if settings creation fails
+      console.error('[AuthService] Failed to create notification settings:', settingsError);
+    }
 
     await logAuditEvent({
       requestId: requestId || crypto.randomUUID(),

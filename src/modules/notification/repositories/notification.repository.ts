@@ -28,11 +28,7 @@ interface NotificationData {
   type:
     | 'low_stock'
     | 'out_of_stock'
-    | 'sale_completed'
-    | 'staff_action'
-    | 'expense_added'
-    | 'system'
-    | 'custom';
+    | 'sale_completed';
   metadata?: Record<string, any>;
   vectorClock: VectorClock;
 }

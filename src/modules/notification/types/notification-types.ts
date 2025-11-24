@@ -6,10 +6,6 @@ export enum NotificationType {
   LOW_STOCK = 'low_stock',
   OUT_OF_STOCK = 'out_of_stock',
   SALE_COMPLETED = 'sale_completed',
-  STAFF_ACTION = 'staff_action',
-  EXPENSE_ADDED = 'expense_added',
-  SYSTEM = 'system',
-  CUSTOM = 'custom',
 }
 
 /**
@@ -49,15 +45,6 @@ export interface SaleCompletedData {
   total: number;
   currency: string;
   staffName?: string;
-}
-
-/**
- * Staff Action Notification Data
- */
-export interface StaffActionData {
-  staffName: string;
-  action: 'created' | 'deleted' | 'updated';
-  performedBy: string;
 }
 
 /**

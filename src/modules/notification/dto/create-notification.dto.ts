@@ -38,10 +38,6 @@ export const createNotificationValidation = [
       'low_stock',
       'out_of_stock',
       'sale_completed',
-      'staff_action',
-      'expense_added',
-      'system',
-      'custom',
     ])
     .withMessage('Invalid notification type'),
 
@@ -67,11 +63,7 @@ export interface CreateNotificationDto {
   type:
     | 'low_stock'
     | 'out_of_stock'
-    | 'sale_completed'
-    | 'staff_action'
-    | 'expense_added'
-    | 'system'
-    | 'custom';
+    | 'sale_completed';
   inventoryId?: string;
   metadata?: Record<string, any>;
 }

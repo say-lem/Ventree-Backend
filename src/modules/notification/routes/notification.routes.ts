@@ -1,14 +1,20 @@
 import { Router } from 'express';
 import { NotificationController } from '../controllers/notification.controller';
+import { NotificationSettingsController } from '../controllers/notification-settings.controller';
 import { authenticate } from '../../../shared/middleware/auth.middleware';
-import { checkNotificationPermission } from '../middleware/check-permissions.middleware';
+import { checkNotificationPermission, requireOwner } from '../middleware/check-permissions.middleware';
 import { createNotificationValidation } from '../dto/create-notification.dto';
 import { queryNotificationsValidation } from '../dto/query-notifications.dto';
 import { markReadValidation } from '../dto/mark-read.dto';
+import {
+  getSettingsValidation,
+  updateSettingsValidation,
+} from '../dto/notification-settings.dto';
 import { query } from 'express-validator';
 
 const router = Router();
 const notificationController = new NotificationController();
+const settingsController = new NotificationSettingsController();
 
 // All routes require authentication
 router.use(authenticate);
@@ -52,6 +58,37 @@ router.get(
   ],
   notificationController.getUnreadCount
 );
+
+/**
+ * GET /api/v1/notifications/settings
+ * Get notification settings for a shop
+ * Query params: shopId
+ * Requires: Owner role
+ */
+router.get(
+  '/settings',
+  requireOwner,
+  getSettingsValidation,
+  settingsController.getSettings
+);
+
+/**
+ * PATCH /api/v1/notifications/settings
+ * Update notification settings
+ * Body: { shopId, lowStockEnabled?, outOfStockEnabled?, saleCompletedEnabled? }
+ * Note: To reset to defaults, send all three fields as true
+ * Requires: Owner role
+ */
+router.patch(
+  '/settings',
+  requireOwner,
+  updateSettingsValidation,
+  settingsController.updateSettings
+);
+
+// ============================================
+// Individual Notification Routes
+// ============================================
 
 /**
  * GET /api/v1/notifications/:id

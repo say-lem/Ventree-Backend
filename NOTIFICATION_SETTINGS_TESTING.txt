@@ -1,0 +1,581 @@
+================================================================================
+    NOTIFICATION SETTINGS FEATURE - POSTMAN TESTING GUIDE
+================================================================================
+
+This guide walks you through testing the notification settings feature using
+Postman, following the complete user flow.
+
+================================================================================
+PREREQUISITES
+================================================================================
+
+1. Server running on http://localhost:5000
+2. Redis connected and running
+3. MongoDB connected
+4. Valid owner JWT token
+5. Shop ID
+6. (Optional) Inventory Item ID for auto-trigger tests
+7. (Optional) Staff Profile ID for sale tests
+
+Setup Postman Environment Variables:
+- base_url: http://localhost:5000
+- token: <your_jwt_token>
+- shop_id: <your_shop_id>
+- inventory_item_id: <inventory_item_id>
+- staff_profile_id: <staff_profile_id>
+
+================================================================================
+TEST FLOW
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 1: GET DEFAULT SETTINGS (ALL ENABLED BY DEFAULT)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 1: Get Default Settings
+--------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications/settings?shopId={{shop_id}}
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected Response:
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "shopId": "...",
+    "lowStockEnabled": true,
+    "outOfStockEnabled": true,
+    "saleCompletedEnabled": true,
+    "created_at": "...",
+    "updated_at": "..."
+  }
+}
+
+✓ Verify all three settings are TRUE by default
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2: DISABLE ALL NOTIFICATIONS                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 2: Disable Low Stock Notifications
+-------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "shopId": "{{shop_id}}",
+  "lowStockEnabled": false
+}
+
+Expected Response:
+{
+  "success": true,
+  "message": "Notification settings updated successfully",
+  "data": {
+    "lowStockEnabled": false,
+    "outOfStockEnabled": true,
+    "saleCompletedEnabled": true,
+    ...
+  }
+}
+
+✓ Verify lowStockEnabled is now FALSE
+
+
+REQUEST 3: Disable Out of Stock Notifications
+----------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "outOfStockEnabled": false
+}
+
+✓ Verify outOfStockEnabled is now FALSE
+
+
+REQUEST 4: Disable Sale Completed Notifications
+------------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "saleCompletedEnabled": false
+}
+
+✓ Verify saleCompletedEnabled is now FALSE
+
+
+REQUEST 5: Verify All Settings Disabled
+----------------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications/settings?shopId={{shop_id}}
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected:
+{
+  "lowStockEnabled": false,
+  "outOfStockEnabled": false,
+  "saleCompletedEnabled": false
+}
+
+✓ All three should be FALSE
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 3: TEST AUTO-TRIGGERS WITH NOTIFICATIONS DISABLED                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 6: Adjust Inventory (Should NOT Create Low Stock Notification)
+-----------------------------------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/inventory/{{inventory_item_id}}/adjust
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "quantity": -10,
+  "reason": "Testing with notifications disabled"
+}
+
+Expected: Inventory updated successfully
+✓ Check server logs - should see "Skipped - low stock notifications disabled"
+
+
+REQUEST 7: Verify No Low Stock Notification Created
+----------------------------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications?shopId={{shop_id}}&type=low_stock&limit=5
+Headers:
+  Authorization: Bearer {{token}}
+
+✓ Should return 0 new notifications (or old ones only)
+
+
+REQUEST 8: Record a Sale (Should NOT Create Sale Completed Notification)
+-------------------------------------------------------------------------
+Method: POST
+URL: {{base_url}}/api/v1/sales
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "soldBy": "{{staff_profile_id}}",
+  "items": [
+    {
+      "inventoryId": "{{inventory_item_id}}",
+      "quantity": 1,
+      "unitPrice": 1000
+    }
+  ],
+  "paymentMethod": "cash",
+  "amountPaid": 1000
+}
+
+Expected: Sale recorded successfully
+✓ Check server logs - should see "Skipped - sale completed notifications disabled"
+
+
+REQUEST 9: Verify No Sale Completed Notification
+-------------------------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications?shopId={{shop_id}}&type=sale_completed&limit=5
+Headers:
+  Authorization: Bearer {{token}}
+
+✓ Should return 0 new notifications
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 4: ENABLE NOTIFICATIONS AND TEST AUTO-TRIGGERS                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 10: Enable All Notifications
+-------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "lowStockEnabled": true,
+  "outOfStockEnabled": true,
+  "saleCompletedEnabled": true
+}
+
+✓ All three should now be TRUE
+
+
+REQUEST 11: Adjust Inventory Again (SHOULD Create Notification)
+----------------------------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/inventory/{{inventory_item_id}}/adjust
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "quantity": -10,
+  "reason": "Testing with notifications enabled"
+}
+
+✓ Check server logs - should see notification creation logs
+
+
+REQUEST 12: Verify Low Stock Notification Created
+--------------------------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications?shopId={{shop_id}}&type=low_stock&limit=5
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected:
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "type": "low_stock",
+      "message": "⚠️ Low Stock Alert: ...",
+      "isRead": false,
+      ...
+    }
+  ]
+}
+
+✓ Should have at least 1 low_stock notification
+
+
+REQUEST 13: Record Sale Again (SHOULD Create Notification)
+-----------------------------------------------------------
+Method: POST
+URL: {{base_url}}/api/v1/sales
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "soldBy": "{{staff_profile_id}}",
+  "items": [
+    {
+      "inventoryId": "{{inventory_item_id}}",
+      "quantity": 1,
+      "unitPrice": 1000
+    }
+  ],
+  "paymentMethod": "cash",
+  "amountPaid": 1000
+}
+
+✓ Sale recorded + notification created
+
+
+REQUEST 14: Verify Sale Completed Notification
+-----------------------------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications?shopId={{shop_id}}&type=sale_completed&limit=5
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected:
+{
+  "data": [
+    {
+      "type": "sale_completed",
+      "message": "💰 Sale Completed: ...",
+      ...
+    }
+  ]
+}
+
+✓ Should have at least 1 sale_completed notification
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 5: TEST SETTINGS RESET                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 15: Disable All Settings First
+---------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "lowStockEnabled": false,
+  "outOfStockEnabled": false,
+  "saleCompletedEnabled": false
+}
+
+✓ All three should be FALSE
+
+
+REQUEST 16: Reset Settings to Defaults
+---------------------------------------
+Method: POST
+URL: {{base_url}}/api/v1/notifications/settings/reset
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}"
+}
+
+Expected Response:
+{
+  "success": true,
+  "message": "Notification settings reset to defaults",
+  "data": {
+    "lowStockEnabled": true,
+    "outOfStockEnabled": true,
+    "saleCompletedEnabled": true
+  }
+}
+
+✓ All settings should be TRUE again
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 6: TEST PARTIAL UPDATES                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 17: Update Only Low Stock Setting
+------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "lowStockEnabled": false
+}
+
+Expected:
+{
+  "lowStockEnabled": false,
+  "outOfStockEnabled": true,     ← Should remain true
+  "saleCompletedEnabled": true   ← Should remain true
+}
+
+✓ Only lowStockEnabled changed, others unchanged
+
+
+REQUEST 18: Update Multiple Settings at Once
+---------------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}",
+  "lowStockEnabled": true,
+  "saleCompletedEnabled": false
+}
+
+Expected:
+{
+  "lowStockEnabled": true,       ← Changed
+  "outOfStockEnabled": true,     ← Unchanged
+  "saleCompletedEnabled": false  ← Changed
+}
+
+✓ Multiple settings can be updated simultaneously
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 7: ERROR HANDLING TESTS                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+REQUEST 19: Invalid Shop ID
+----------------------------
+Method: GET
+URL: {{base_url}}/api/v1/notifications/settings?shopId=invalid_id
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected:
+{
+  "success": false,
+  "error": "Shop ID must be a valid MongoDB ObjectId"
+}
+
+✓ Should return validation error
+
+
+REQUEST 20: Update Without Any Fields
+--------------------------------------
+Method: PATCH
+URL: {{base_url}}/api/v1/notifications/settings
+Headers:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+Body:
+{
+  "shopId": "{{shop_id}}"
+}
+
+Expected:
+{
+  "success": false,
+  "error": "At least one setting must be provided"
+}
+
+✓ Should return validation error
+
+
+REQUEST 21: Wrong Shop Access
+------------------------------
+Use a token from Shop A to access Shop B's settings:
+
+Method: GET
+URL: {{base_url}}/api/v1/notifications/settings?shopId=<different_shop_id>
+Headers:
+  Authorization: Bearer {{token}}
+
+Expected:
+{
+  "success": false,
+  "error": "You do not have access to this shop"
+}
+
+✓ Should return authorization error
+
+
+================================================================================
+VERIFICATION CHECKLIST
+================================================================================
+
+After completing all tests, verify:
+
+[ ] Default settings are all enabled for new shops
+[ ] Settings can be toggled individually
+[ ] Multiple settings can be updated at once
+[ ] When disabled, auto-triggers do NOT create notifications
+[ ] When enabled, auto-triggers DO create notifications
+[ ] Reset functionality restores all settings to default (enabled)
+[ ] Partial updates don't affect other settings
+[ ] Proper error handling for invalid inputs
+[ ] Shop access validation works correctly
+[ ] Settings persist across requests
+
+================================================================================
+WHAT TO CHECK IN SERVER LOGS
+================================================================================
+
+When notifications are DISABLED, look for:
+✓ [AutoNotificationTriggers.onLowStock] Skipped - low stock notifications disabled for shop...
+✓ [AutoNotificationTriggers.onOutOfStock] Skipped - out of stock notifications disabled...
+✓ [AutoNotificationTriggers.onSaleCompleted] Skipped - sale completed notifications disabled...
+
+When notifications are ENABLED, look for:
+✓ [NotificationEmitter] Published to owner channel: ... (1 subscribers)
+✓ [NotificationEmitter] Published to shop channel: ... (1 subscribers)
+✓ Notification created in database
+
+On shop registration (OTP verification):
+✓ [AuthService] Created default notification settings for shop...
+
+================================================================================
+REDIS MONITORING
+================================================================================
+
+While testing, keep a Redis monitor running to see real-time messages:
+
+Terminal:
+redis-cli -h <host> -p <port> -a <password>
+PSUBSCRIBE notifications:*
+
+You should see messages when:
+- Notifications are enabled and auto-triggers fire
+- Manual notifications are created
+- WebSocket broadcasts happen
+
+You should NOT see messages when:
+- Notifications are disabled and auto-triggers try to fire
+
+================================================================================
+DATABASE VERIFICATION
+================================================================================
+
+Check MongoDB collections:
+
+1. notificationsettings collection:
+   - Each shop should have one settings document
+   - Settings should reflect your latest changes
+
+2. notifications collection:
+   - When enabled: auto-triggered notifications appear
+   - When disabled: auto-triggered notifications don't appear
+   - Manual notifications always appear regardless of settings
+
+Query examples:
+db.notificationsettings.find({ shopId: ObjectId("...") })
+db.notifications.find({ shopId: ObjectId("..."), type: "low_stock" }).sort({ created_at: -1 })
+
+================================================================================
+SUCCESS CRITERIA
+================================================================================
+
+✓ All API endpoints return expected responses
+✓ Settings persist correctly in database
+✓ Auto-triggers respect settings preferences
+✓ No notifications created when disabled
+✓ Notifications created when enabled
+✓ Server logs show proper skip/create messages
+✓ Redis publishes messages only when enabled
+✓ Error handling works for invalid inputs
+✓ Authorization checks work correctly
+
+================================================================================
+COMMON ISSUES & TROUBLESHOOTING
+================================================================================
+
+Issue: Settings don't persist
+Solution: Check MongoDB connection, verify shop ID is valid
+
+Issue: Notifications still created when disabled
+Solution: Check server logs, verify settings service is checking properly
+
+Issue: No notifications created when enabled
+Solution: Check auto-trigger code, verify notification service has emitter
+
+Issue: Can't access settings
+Solution: Verify JWT token is valid, check shop ID matches token
+
+Issue: Redis not receiving messages
+Solution: Check Redis connection, verify emitter is configured
+
+================================================================================
+
+

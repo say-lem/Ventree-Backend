@@ -41,10 +41,6 @@ export const queryNotificationsValidation = [
       'low_stock',
       'out_of_stock',
       'sale_completed',
-      'staff_action',
-      'expense_added',
-      'system',
-      'custom',
     ])
     .withMessage('Invalid notification type'),
 ];
