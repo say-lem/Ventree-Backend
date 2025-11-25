@@ -35,7 +35,6 @@ export const createExpenseController = async (req: Request, res: Response) => {
 export const getExpensesController = async (req: Request, res: Response) => {
   try {
     const { shopId } = req.params;
-    console.log(req.user)
 
     const expenses = await getExpensesService({ shopId, reqUser: req.user });
 
@@ -83,8 +82,8 @@ export const getSingleExpenseController = async (req: Request, res: Response) =>
 export const updateExpenseController = async (req: Request, res: Response) => {
   try {
     const { shopId, expenseId } = req.params;
-    const updateData = req.body.updateData;
-
+    const updateData = req.body;
+    console.log(req.user)
     const updatedExpense = await updateExpenseService({ shopId, expenseId, updateData, reqUser: req.user });
 
     return res.status(200).json({ success: true, data: updatedExpense });

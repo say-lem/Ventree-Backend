@@ -58,11 +58,11 @@ export const expensesCreateValidation = [
 
 
 export const expensesUpdateValidation = [
-  body("shopId")
-    .trim()
-    .notEmpty()
-    .withMessage("Shop ID is required")
-    .isMongoId(),
+  // body("shopId")
+  //   .trim()
+  //   .notEmpty()
+  //   .withMessage("Shop ID is required")
+  //   .isMongoId(),
 
   // staffId logic: optional for owner, required for staff
   body("staffId").custom((value, { req }) => {

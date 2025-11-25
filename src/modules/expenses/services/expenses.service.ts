@@ -144,7 +144,7 @@ export const getFilteredExpensesService = async ({ shopId, staffId, filter }) =>
 
 
 // GET SINGLE EXPENSE ─ any staff or owner of the shop
-export const getSingleExpenseService = async ({ shopId, staffId, expenseId, reqUser }) => {
+export const getSingleExpenseService = async ({ shopId, expenseId, reqUser }) => {
   // 1. Validate shop
   const shop = await Shop.findById(shopId);
   if (!shop) throw new ValidationError("Invalid shop id, shop does not exist");

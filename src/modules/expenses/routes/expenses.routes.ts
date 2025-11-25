@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   authenticate,
+  ownerAndManager,
   ownerOnly,
   verifyShopAccess,
 } from "../../../shared/middleware/auth.middleware";
@@ -85,6 +86,7 @@ router.get(
 router.patch(
   "/:shopId/:expenseId",
   authenticate,
+  ownerAndManager,
   expensesUpdateValidation,
   updateExpenseController
 );
