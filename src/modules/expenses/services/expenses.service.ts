@@ -88,7 +88,7 @@ export const createExpenseService = async ({ shopId, staffId, authUser, amount, 
 
 
 
-export const getExpensesService = async ({ shopId, staffId, reqUser }) => {
+export const getExpensesService = async ({ shopId, reqUser }) => {
   // 1. Shop exists?
   const shop = await Shop.findById(shopId);
   if (!shop) throw new ValidationError("Invalid shop id, shop does not exist");
@@ -100,10 +100,10 @@ export const getExpensesService = async ({ shopId, staffId, reqUser }) => {
   }
 
   // 3. Staff logic: Must belong to shop
-  const staff = await Staff.findOne({ _id: staffId, shop: shopId });
-  if (!staff) throw new ValidationError("Unauthorized. Staff does not belong to this shop");
+  // const staff = await Staff.findOne({ _id: staffId, shop: shopId });
+  if (reqUser.role === "staff") throw new ValidationError("Unauthorized. Staff does not belong to this shop");
 
-  return Expense.find({ shopId }).sort({ createdAt: -1 });
+  // return Expense.find({ shopId }).sort({ createdAt: -1 });
 };
 
 
@@ -144,7 +144,7 @@ export const getFilteredExpensesService = async ({ shopId, staffId, filter }) =>
 
 
 // GET SINGLE EXPENSE ─ any staff or owner of the shop
-export const getSingleExpenseService = async ({ shopId, staffId, expenseId, reqUser }) => {
+export const getSingleExpenseService = async ({ shopId, expenseId, reqUser }) => {
   // 1. Validate shop
   const shop = await Shop.findById(shopId);
   if (!shop) throw new ValidationError("Invalid shop id, shop does not exist");
@@ -152,8 +152,8 @@ export const getSingleExpenseService = async ({ shopId, staffId, expenseId, reqU
   // 2. Owner bypasses staff check
   if (reqUser.role !== "owner") {
     // Staff must belong to the shop
-    const staff = await Staff.findOne({ _id: staffId, shop: shopId });
-    if (!staff) throw new ValidationError("Unauthorized. Staff does not belong to this shop");
+    // const staff = await Staff.findOne({ _id: staffId, shop: shopId });
+    throw new ValidationError("Unauthorized. Staff does not belong to this shop");
   }
 
   // 3. Fetch the expense
@@ -167,7 +167,6 @@ export const getSingleExpenseService = async ({ shopId, staffId, expenseId, reqU
 // UPDATE EXPENSE ─ manager OR owner
 export const updateExpenseService = async ({
   shopId,
-  staffId,
   expenseId,
   updateData,
   reqUser
@@ -193,15 +192,16 @@ export const updateExpenseService = async ({
     // owner is allowed, skip staff lookup
   } else {
     // user is a staff → must belong to shop
-    const staff = await Staff.findOne({ _id: staffId, shop: shopId });
-    if (!staff) {
-      throw new ValidationError("Unauthorized. Staff does not belong to this shop");
-    }
+    // const staff = await Staff.findOne({ _id: staffId, shop: shopId });
+    // if (!staff) {
+    //   throw new ValidationError("Unauthorized. Staff does not belong to this shop");
+    // }
 
-    // staff must be manager
-    if (staff.role !== "manager") {
-      throw new ValidationError("Only managers or shop owner can update an expense");
-    }
+    // { Better to extend the general role to contain manager, to avoid extra lookups}
+    // staff must be manager 
+    // if (staff.role !== "manager") {
+    //   throw new ValidationError("Only managers or shop owner can update an expense");
+    // }
   }
   
   // 4. Update expense
