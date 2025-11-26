@@ -67,6 +67,7 @@ export const authenticate = (
       return;
     }
 
+    
     // Verify token
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
@@ -132,6 +133,31 @@ export const authenticate = (
  * Restricts access to shop owners only
  */
 export const ownerOnly = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      message: "Authentication required.",
+    });
+    return;
+  }
+
+  if (req.user.role !== "owner") {
+    res.status(403).json({
+      success: false,
+      message: "Access denied. This action is only available to shop owners.",
+      code: "OWNER_ONLY",
+    });
+    return;
+  }
+
+  next();
+};
+
+export const ownerAndManager = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction

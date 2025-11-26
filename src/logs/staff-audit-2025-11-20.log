@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-20T12:18:55.427Z","requestId":"310f9a59-1052-4096-9ff3-8744d742a9a7","action":"STAFF_CREATED","shopId":"691ef7a464de4b6503334f0d","performedBy":{"userId":"owner","role":"owner"},"targetStaffId":"691f072f64de4b6503334f5d","ip":"::1","details":{"staffName":"sam","phoneNumber":"2348143250536","role":"manager"}}

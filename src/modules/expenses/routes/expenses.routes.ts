@@ -1,12 +1,17 @@
 import { Router } from "express";
-import { authenticate, ownerOnly, verifyShopAccess } from "../../../shared/middleware/auth.middleware";
+import {
+  authenticate,
+  ownerAndManager,
+  ownerOnly,
+  verifyShopAccess,
+} from "../../../shared/middleware/auth.middleware";
 import { validateRequest } from "../middlewares/validateRequest.middleware";
 import {
-    expensesCreateValidation,
-    expensesUpdateValidation,
-    expensesDeleteValidation,
-    shopIdParamValidation,
-    filterExpensesValidation,
+  expensesCreateValidation,
+  expensesUpdateValidation,
+  expensesDeleteValidation,
+  shopIdParamValidation,
+  filterExpensesValidation,
 } from "../validators/expenses.validator";
 import {
   createExpenseController,
@@ -15,10 +20,15 @@ import {
   getSingleExpenseController,
   getTotalExpensesController,
   updateExpenseController,
-  deleteExpenseController
+  deleteExpenseController,
 } from "../controllers/expenses.controller";
 
 const router = Router();
+
+// Note
+// - Your Validation should come before your authentication middleware,
+// - I removed the staff check on your controller and lookup since they could be checked with the user role
+// - Utilize your ownerOnly middleware more often to reduce redundancy / stress
 
 // CREATE EXPENSE (manager only)
 router.post(
@@ -28,7 +38,6 @@ router.post(
   validateRequest,
   createExpenseController
 );
-
 
 // ─────────────────────────────────────────────
 // LIST ALL EXPENSES
@@ -41,7 +50,6 @@ router.get(
   getExpensesController
 );
 
-
 // ─────────────────────────────────────────────
 // FILTERED EXPENSES (today, week, month)
 // ─────────────────────────────────────────────
@@ -51,7 +59,6 @@ router.get(
   filterExpensesValidation,
   getFilteredExpensesController
 );
-
 
 // ─────────────────────────────────────────────
 // TOTAL EXPENSES (today, week, month, total)
@@ -63,7 +70,6 @@ router.get(
   getTotalExpensesController
 );
 
-
 // ─────────────────────────────────────────────
 // GET SINGLE EXPENSE
 // ─────────────────────────────────────────────
@@ -74,17 +80,16 @@ router.get(
   getSingleExpenseController
 );
 
-
 // ─────────────────────────────────────────────
 // UPDATE EXPENSE (manager + owner)
 // ─────────────────────────────────────────────
 router.patch(
   "/:shopId/:expenseId",
   authenticate,
+  ownerAndManager,
   expensesUpdateValidation,
   updateExpenseController
 );
-
 
 // ─────────────────────────────────────────────
 // DELETE EXPENSE (owner only)
@@ -96,6 +101,5 @@ router.delete(
   expensesDeleteValidation,
   deleteExpenseController
 );
-
 
 export { router as expensesRouter };

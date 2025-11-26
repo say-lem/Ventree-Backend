@@ -13,7 +13,7 @@ export const getShopProfile = asyncHandler(async(req: Request, res: Response) =>
         throw new ValidationError("Validation failed", errors.array());
       }
 
-    const { shopId } = req.body;
+    const { shopId } = req.params;
 
     const shop = await getShopProfileService(shopId);
 
@@ -26,7 +26,7 @@ export const getShopProfile = asyncHandler(async(req: Request, res: Response) =>
 
 export const updateShopProfile = async (req: Request,res: Response) => {
     const { shopId } = req.params;
-    const { shopName, phoneNumber, ownerName } = req.body;
+    const { shopName, phoneNumber, ownerName, address } = req.body;
     const requestId = crypto.randomUUID();
     const ip = req.ip
 
@@ -34,6 +34,7 @@ export const updateShopProfile = async (req: Request,res: Response) => {
         shopName,
         phoneNumber,
         ownerName,
+        address
     });
     
     res.status(200).json({

@@ -6,7 +6,6 @@ import { validateShopId, validateUpdateShop } from "../middleware/shop.validatio
 import { validateSubmitKYC, validateUpdateKYC } from "../middleware/kyc.validation";
 
 
-
 const router = Router()
 
 router.get(

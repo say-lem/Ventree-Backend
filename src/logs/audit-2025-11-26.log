@@ -1,0 +1,12 @@
+{"timestamp":"2025-11-26T08:17:03.554Z","requestId":"60557063-2f7e-41c7-a539-5aa10f091581","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
+{"timestamp":"2025-11-26T09:24:44.986Z","requestId":"119c6a8d-4db4-4515-92ea-fe48b55c8b3a","action":"LOGIN_SUCCESS","ip":"::1","shopId":"691ef7a464de4b6503334f0d","role":"owner"}
+{"timestamp":"2025-11-26T09:57:11.514Z","requestId":"b7e70e2b-5f82-4342-bcbf-c34ea26cf8ae","action":"LOGIN_SUCCESS","ip":"::1","shopId":"691ef7a464de4b6503334f0d","role":"owner"}
+{"timestamp":"2025-11-26T09:57:30.759Z","requestId":"9469d991-97c4-4479-9d55-e75299314477","action":"LOGIN_SUCCESS","ip":"::1","shopId":"691ef7a464de4b6503334f0d","role":"owner"}
+{"timestamp":"2025-11-26T09:58:02.296Z","requestId":"0af9c5d9-58c6-4ceb-9eec-f576afff4d68","action":"LOGIN_SUCCESS","ip":"::1","shopId":"691ef7a464de4b6503334f0d","role":"owner"}
+{"timestamp":"2025-11-26T11:39:42.519Z","requestId":"bab59082-b66a-43de-88a0-3f8c28868ca3","action":"LOGIN_SUCCESS","ip":"::1","shopId":"691ef7a464de4b6503334f0d","role":"owner"}
+{"timestamp":"2025-11-26T11:42:56.138Z","requestId":"a59e92dd-51da-4f3c-979c-af5013e78a2b","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
+{"timestamp":"2025-11-26T11:43:36.324Z","requestId":"f0b3d3d6-bb38-4f15-a10a-0eb594dc05d4","action":"SHOP_PROFILE_UPDATE","ip":"::1","shopId":"6925c9061e34f45241127aae","details":{"updatedFields":["shopName","phoneNumber","ownerName","address"]}}
+{"timestamp":"2025-11-26T11:43:55.140Z","requestId":"ba8e03e4-1bbd-4e07-8137-4c5c96fc54e5","action":"SHOP_PROFILE_UPDATE","ip":"::1","shopId":"6925c9061e34f45241127aae","details":{"updatedFields":["shopName","phoneNumber","ownerName","address"]}}
+{"timestamp":"2025-11-26T12:32:23.652Z","requestId":"b4d43771-bc46-4e8f-b09b-727ef6f7d56d","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
+{"timestamp":"2025-11-26T13:33:46.415Z","requestId":"562a3246-e801-4111-9c8b-764f723b9291","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
+{"timestamp":"2025-11-26T13:37:14.175Z","requestId":"9fbd390e-e855-401a-ac2d-497b9194e3ef","action":"SHOP_PROFILE_UPDATE","ip":"::1","shopId":"6925c9061e34f45241127aae","details":{"updatedFields":["shopName","phoneNumber","ownerName","address"]}}
