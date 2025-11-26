@@ -1,18 +1,18 @@
 import { Response } from "express";
 import { validationResult } from "express-validator";
-import { SalesService } from "../services/sales.service";
+import { TicketService } from "../services/sales.service";
 import { AuthenticatedRequest } from "../../../shared/middleware/auth.middleware";
 import { asyncHandler } from "../../../shared/utils/asyncHandler";
 import { ValidationError, AuthenticationError } from "../../../shared/utils/AppError";
 import crypto from "crypto";
 
-const salesService = new SalesService();
+const ticketService = new TicketService();
 
 /**
- * @route POST /sales
- * @desc Record a new sale (including credit sales)
+ * @route POST /tickets
+ * @desc Create a new ticket (multi-item sale)
  */
-export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const createTicket = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -23,10 +23,9 @@ export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
   }
 
   const requestId = crypto.randomUUID();
-  const saleData = req.body;
-  console.log("Recording sale:", saleData);
+  const ticketData = req.body;
 
-  const sale = await salesService.recordSale(saleData, {
+  const ticket = await ticketService.createTicket(ticketData, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -36,16 +35,16 @@ export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
   res.status(201).json({
     success: true,
-    message: sale.isCredit ? "Credit sale recorded successfully" : "Sale recorded successfully",
-    data: sale,
+    message: ticket.isCredit ? "Credit ticket created successfully" : "Ticket created successfully",
+    data: ticket,
   });
 });
 
 /**
- * @route GET /sales/:shopId
- * @desc Get all sales for a shop with filters
+ * @route GET /tickets/:shopId
+ * @desc Get all tickets (summary view)
  */
-export const getSalesList = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const getTicketList = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -60,7 +59,6 @@ export const getSalesList = asyncHandler(async (req: AuthenticatedRequest, res: 
   const {
     startDate,
     endDate,
-    itemId,
     soldBy,
     paymentMethod,
     includeRefunded = "false",
@@ -72,12 +70,11 @@ export const getSalesList = asyncHandler(async (req: AuthenticatedRequest, res: 
     sortOrder = "desc",
   } = req.query;
 
-  const result = await salesService.getSalesList(
+  const result = await ticketService.getTicketList(
     shopId,
     {
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
-      itemId: itemId as string,
       soldBy: soldBy as string,
       paymentMethod: paymentMethod as string,
       includeRefunded: includeRefunded === "true",
@@ -99,16 +96,16 @@ export const getSalesList = asyncHandler(async (req: AuthenticatedRequest, res: 
 
   res.status(200).json({
     success: true,
-    message: "Sales retrieved successfully",
+    message: "Tickets retrieved successfully",
     data: result,
   });
 });
 
 /**
- * @route GET /sales/:shopId/:saleId
- * @desc Get single sale by ID
+ * @route GET /tickets/:shopId/items
+ * @desc Get all items sold (individual item view from all tickets)
  */
-export const getSaleById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const getAllItemsSold = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -119,9 +116,66 @@ export const getSaleById = asyncHandler(async (req: AuthenticatedRequest, res: R
   }
 
   const requestId = crypto.randomUUID();
-  const { shopId, saleId } = req.params;
+  const { shopId } = req.params;
+  const {
+    startDate,
+    endDate,
+    soldBy,
+    paymentMethod,
+    includeRefunded = "false",
+    page = "1",
+    limit = "20",
+    sortBy = "date",
+    sortOrder = "desc",
+  } = req.query;
 
-  const sale = await salesService.getSaleById(saleId, shopId, {
+  const result = await ticketService.getAllItemsSold(
+    shopId,
+    {
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+      soldBy: soldBy as string,
+      paymentMethod: paymentMethod as string,
+      includeRefunded: includeRefunded === "true",
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      sortBy: sortBy as string,
+      sortOrder: sortOrder as "asc" | "desc",
+    },
+    {
+      requestId,
+      ip: req.ip || "unknown",
+      userId: req.user.profileId,
+      userRole: req.user.role,
+      userShopId: req.user.shopId,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Items sold retrieved successfully",
+    data: result,
+  });
+});
+
+/**
+ * @route GET /tickets/:shopId/:ticketId
+ * @desc Get single ticket by ID (with all items)
+ */
+export const getTicketById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError("Validation failed", errors.array());
+  }
+
+  if (!req.user) {
+    throw new AuthenticationError("User not authenticated");
+  }
+
+  const requestId = crypto.randomUUID();
+  const { shopId, ticketId } = req.params;
+
+  const ticket = await ticketService.getTicketById(ticketId, shopId, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -131,16 +185,16 @@ export const getSaleById = asyncHandler(async (req: AuthenticatedRequest, res: R
 
   res.status(200).json({
     success: true,
-    message: "Sale retrieved successfully",
-    data: sale,
+    message: "Ticket retrieved successfully",
+    data: ticket,
   });
 });
 
 /**
- * @route PUT /sales/:shopId/:saleId
- * @desc Update sale details
+ * @route PUT /tickets/:shopId/:ticketId
+ * @desc Update ticket details
  */
-export const updateSale = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const updateTicket = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -151,10 +205,10 @@ export const updateSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
   }
 
   const requestId = crypto.randomUUID();
-  const { shopId, saleId } = req.params;
+  const { shopId, ticketId } = req.params;
   const updates = req.body;
 
-  const sale = await salesService.updateSale(saleId, shopId, updates, {
+  const ticket = await ticketService.updateTicket(ticketId, shopId, updates, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -164,16 +218,16 @@ export const updateSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
   res.status(200).json({
     success: true,
-    message: "Sale updated successfully",
-    data: sale,
+    message: "Ticket updated successfully",
+    data: ticket,
   });
 });
 
 /**
- * @route POST /sales/:shopId/:saleId/refund
- * @desc Refund a sale
+ * @route POST /tickets/:shopId/:ticketId/refund
+ * @desc Refund a ticket
  */
-export const refundSale = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const refundTicket = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -184,11 +238,11 @@ export const refundSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
   }
 
   const requestId = crypto.randomUUID();
-  const { shopId, saleId } = req.params;
+  const { shopId, ticketId } = req.params;
   const { reason, refundedBy } = req.body;
 
-  const sale = await salesService.refundSale(
-    saleId,
+  const ticket = await ticketService.refundTicket(
+    ticketId,
     shopId,
     { reason, refundedBy },
     {
@@ -202,16 +256,16 @@ export const refundSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
   res.status(200).json({
     success: true,
-    message: "Sale refunded successfully",
-    data: sale,
+    message: "Ticket refunded successfully",
+    data: ticket,
   });
 });
 
 /**
- * @route DELETE /sales/:shopId/:saleId
- * @desc Delete a sale (owner only)
+ * @route DELETE /tickets/:shopId/:ticketId
+ * @desc Delete a ticket (owner only)
  */
-export const deleteSale = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const deleteTicket = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -222,9 +276,9 @@ export const deleteSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
   }
 
   const requestId = crypto.randomUUID();
-  const { shopId, saleId } = req.params;
+  const { shopId, ticketId } = req.params;
 
-  await salesService.deleteSale(saleId, shopId, {
+  await ticketService.deleteTicket(ticketId, shopId, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -234,15 +288,15 @@ export const deleteSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
   res.status(200).json({
     success: true,
-    message: "Sale deleted successfully",
+    message: "Ticket deleted successfully",
   });
 });
 
 /**
- * @route GET /sales/:shopId/analytics
+ * @route GET /tickets/:shopId/analytics
  * @desc Get sales analytics
  */
-export const getSalesAnalytics = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const getAnalytics = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -256,7 +310,7 @@ export const getSalesAnalytics = asyncHandler(async (req: AuthenticatedRequest, 
   const { shopId } = req.params;
   const { startDate, endDate, includeRefunded = "false" } = req.query;
 
-  const analytics = await salesService.getSalesAnalytics(
+  const analytics = await ticketService.getAnalytics(
     shopId,
     {
       startDate: startDate ? new Date(startDate as string) : undefined,
@@ -274,16 +328,16 @@ export const getSalesAnalytics = asyncHandler(async (req: AuthenticatedRequest, 
 
   res.status(200).json({
     success: true,
-    message: "Sales analytics retrieved successfully",
+    message: "Analytics retrieved successfully",
     data: analytics,
   });
 });
 
 /**
- * @route GET /sales/:shopId/search
- * @desc Search sales
+ * @route GET /tickets/:shopId/search
+ * @desc Search tickets
  */
-export const searchSales = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const searchTickets = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -297,7 +351,7 @@ export const searchSales = asyncHandler(async (req: AuthenticatedRequest, res: R
   const { shopId } = req.params;
   const { q, page = "1", limit = "20" } = req.query;
 
-  const result = await salesService.searchSales(
+  const result = await ticketService.searchTickets(
     shopId,
     q as string,
     parseInt(page as string),
@@ -319,117 +373,8 @@ export const searchSales = asyncHandler(async (req: AuthenticatedRequest, res: R
 });
 
 /**
- * @route GET /sales/:shopId/report
- * @desc Generate sales report
- */
-export const generateSalesReport = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    throw new ValidationError("Validation failed", errors.array());
-  }
-
-  if (!req.user) {
-    throw new AuthenticationError("User not authenticated");
-  }
-
-  const requestId = crypto.randomUUID();
-  const { shopId } = req.params;
-  const { startDate, endDate } = req.query;
-
-  if (!startDate || !endDate) {
-    throw new ValidationError("Start date and end date are required for reports");
-  }
-
-  const report = await salesService.getSalesReport(
-    shopId,
-    new Date(startDate as string),
-    new Date(endDate as string),
-    {
-      requestId,
-      ip: req.ip || "unknown",
-      userId: req.user.profileId,
-      userRole: req.user.role,
-      userShopId: req.user.shopId,
-    }
-  );
-
-  res.status(200).json({
-    success: true,
-    message: "Sales report generated successfully",
-    data: report,
-  });
-});
-
-/**
- * @route GET /sales/:shopId/top-items
- * @desc Get top performing items
- */
-export const getTopPerformingItems = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    throw new AuthenticationError("User not authenticated");
-  }
-
-  const requestId = crypto.randomUUID();
-  const { shopId } = req.params;
-  const { limit = "10", startDate, endDate } = req.query;
-
-  const topItems = await salesService.getTopPerformingItems(
-    shopId,
-    parseInt(limit as string),
-    startDate ? new Date(startDate as string) : undefined,
-    endDate ? new Date(endDate as string) : undefined,
-    {
-      requestId,
-      ip: req.ip || "unknown",
-      userId: req.user.profileId,
-      userRole: req.user.role,
-      userShopId: req.user.shopId,
-    }
-  );
-
-  res.status(200).json({
-    success: true,
-    message: "Top performing items retrieved successfully",
-    data: topItems,
-  });
-});
-
-/**
- * @route GET /sales/:shopId/staff-performance
- * @desc Get staff performance
- */
-export const getStaffPerformance = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    throw new AuthenticationError("User not authenticated");
-  }
-
-  const requestId = crypto.randomUUID();
-  const { shopId } = req.params;
-  const { startDate, endDate } = req.query;
-
-  const performance = await salesService.getStaffPerformance(
-    shopId,
-    startDate ? new Date(startDate as string) : undefined,
-    endDate ? new Date(endDate as string) : undefined,
-    {
-      requestId,
-      ip: req.ip || "unknown",
-      userId: req.user.profileId,
-      userRole: req.user.role,
-      userShopId: req.user.shopId,
-    }
-  );
-
-  res.status(200).json({
-    success: true,
-    message: "Staff performance retrieved successfully",
-    data: performance,
-  });
-});
-
-/**
- * @route POST /sales/:shopId/:saleId/payment
- * @desc Record a payment for a credit sale
+ * @route POST /tickets/:shopId/:ticketId/payment
+ * @desc Record a payment for a credit ticket
  */
 export const recordCreditPayment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
@@ -442,12 +387,12 @@ export const recordCreditPayment = asyncHandler(async (req: AuthenticatedRequest
   }
 
   const requestId = crypto.randomUUID();
-  const { shopId, saleId } = req.params;
+  const { shopId, ticketId } = req.params;
   const { amount, paymentMethod, receivedBy, transactionReference, notes } = req.body;
 
-  const sale = await salesService.recordCreditPayment(
+  const ticket = await ticketService.recordCreditPayment(
     {
-      saleId,
+      ticketId,
       shopId,
       amount,
       paymentMethod,
@@ -466,18 +411,18 @@ export const recordCreditPayment = asyncHandler(async (req: AuthenticatedRequest
 
   res.status(200).json({
     success: true,
-    message: sale.creditStatus === "paid" 
-      ? "Payment recorded. Credit sale fully paid!" 
+    message: ticket.creditStatus === "paid" 
+      ? "Payment recorded. Credit ticket fully paid!" 
       : "Payment recorded successfully",
-    data: sale,
+    data: ticket,
   });
 });
 
 /**
- * @route GET /sales/:shopId/credit
- * @desc Get all credit sales for a shop
+ * @route GET /tickets/:shopId/credit
+ * @desc Get all credit tickets
  */
-export const getCreditSales = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const getCreditTickets = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -500,7 +445,7 @@ export const getCreditSales = asyncHandler(async (req: AuthenticatedRequest, res
     sortOrder = "desc",
   } = req.query;
 
-  const result = await salesService.getCreditSales(
+  const result = await ticketService.getCreditTickets(
     shopId,
     {
       creditStatus: creditStatus as "pending" | "partial" | "paid" | undefined,
@@ -523,14 +468,14 @@ export const getCreditSales = asyncHandler(async (req: AuthenticatedRequest, res
 
   res.status(200).json({
     success: true,
-    message: "Credit sales retrieved successfully",
+    message: "Credit tickets retrieved successfully",
     data: result,
   });
 });
 
 /**
- * @route GET /sales/:shopId/credit/summary
- * @desc Get credit sales summary for a shop
+ * @route GET /tickets/:shopId/credit/summary
+ * @desc Get credit sales summary
  */
 export const getCreditSalesSummary = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
@@ -545,7 +490,7 @@ export const getCreditSalesSummary = asyncHandler(async (req: AuthenticatedReque
   const requestId = crypto.randomUUID();
   const { shopId } = req.params;
 
-  const summary = await salesService.getCreditSalesSummary(shopId, {
+  const summary = await ticketService.getCreditSalesSummary(shopId, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -561,10 +506,10 @@ export const getCreditSalesSummary = asyncHandler(async (req: AuthenticatedReque
 });
 
 /**
- * @route GET /sales/:shopId/credit/overdue
- * @desc Get overdue credit sales for a shop
+ * @route GET /tickets/:shopId/credit/overdue
+ * @desc Get overdue credit tickets
  */
-export const getOverdueCreditSales = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+export const getOverdueCreditTickets = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError("Validation failed", errors.array());
@@ -577,7 +522,7 @@ export const getOverdueCreditSales = asyncHandler(async (req: AuthenticatedReque
   const requestId = crypto.randomUUID();
   const { shopId } = req.params;
 
-  const overdueSales = await salesService.getOverdueCreditSales(shopId, {
+  const overdueTickets = await ticketService.getOverdueCreditTickets(shopId, {
     requestId,
     ip: req.ip || "unknown",
     userId: req.user.profileId,
@@ -587,16 +532,16 @@ export const getOverdueCreditSales = asyncHandler(async (req: AuthenticatedReque
 
   res.status(200).json({
     success: true,
-    message: "Overdue credit sales retrieved successfully",
+    message: "Overdue credit tickets retrieved successfully",
     data: {
-      sales: overdueSales,
-      count: overdueSales.length,
+      tickets: overdueTickets,
+      count: overdueTickets.length,
     },
   });
 });
 
 /**
- * @route GET /sales/:shopId/credit/customer/:customerPhone
+ * @route GET /tickets/:shopId/credit/customer/:customerPhone
  * @desc Get credit history for a specific customer
  */
 export const getCustomerCreditHistory = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -612,7 +557,7 @@ export const getCustomerCreditHistory = asyncHandler(async (req: AuthenticatedRe
   const requestId = crypto.randomUUID();
   const { shopId, customerPhone } = req.params;
 
-  const result = await salesService.getCustomerCreditHistory(
+  const result = await ticketService.getCustomerCreditHistory(
     shopId,
     customerPhone,
     {
