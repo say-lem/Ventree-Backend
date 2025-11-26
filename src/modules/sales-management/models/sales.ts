@@ -1,19 +1,12 @@
 import mongoose, { Schema } from "mongoose";
-import { ISale } from "../types";
+import { ITicket, ITicketItem } from "../types";
 
-const saleSchema = new Schema<ISale>(
+const ticketItemSchema = new Schema<ITicketItem>(
   {
-    shopId: {
-      type: Schema.Types.ObjectId,
-      ref: "Shop",
-      required: true,
-      index: true,
-    },
     itemId: {
       type: Schema.Types.ObjectId,
-      ref: "Inventory",  // Changed from "Item" to "Inventory"
+      ref: "Inventory",
       required: true,
-      index: true,
     },
     itemName: {
       type: String,
@@ -43,6 +36,49 @@ const saleSchema = new Schema<ISale>(
       type: Number,
       default: 0,
       min: [0, "Discount cannot be negative"],
+      max: [100, "Discount cannot exceed 100%"],
+    },
+    lineTotal: {
+      type: Number,
+      required: true,
+      min: [0, "Line total cannot be negative"],
+    },
+    lineProfit: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
+const ticketSchema = new Schema<ITicket>(
+  {
+    ticketNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    shopId: {
+      type: Schema.Types.ObjectId,
+      ref: "Shop",
+      required: true,
+      index: true,
+    },
+    items: {
+      type: [ticketItemSchema],
+      required: true,
+      validate: {
+        validator: function (items: ITicketItem[]) {
+          return items && items.length > 0;
+        },
+        message: "Ticket must contain at least one item",
+      },
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: [0, "Subtotal cannot be negative"],
     },
     taxAmount: {
       type: Number,
@@ -54,9 +90,14 @@ const saleSchema = new Schema<ISale>(
       required: true,
       min: [0, "Total amount cannot be negative"],
     },
-    profitAmount: {
+    totalProfit: {
       type: Number,
       required: true,
+    },
+    totalItemCount: {
+      type: Number,
+      required: true,
+      min: [1, "Total item count must be at least 1"],
     },
     soldBy: {
       type: Schema.Types.ObjectId,
@@ -80,8 +121,6 @@ const saleSchema = new Schema<ISale>(
       trim: true,
       sparse: true,
     },
-    
-    // Customer info (required for credit sales)
     customerName: {
       type: String,
       trim: true,
@@ -89,13 +128,12 @@ const saleSchema = new Schema<ISale>(
     customerPhone: {
       type: String,
       trim: true,
+      index: true,
     },
     customerAddress: {
       type: String,
       trim: true,
     },
-    
-    // Credit sale specific fields
     isCredit: {
       type: Boolean,
       default: false,
@@ -121,40 +159,41 @@ const saleSchema = new Schema<ISale>(
       type: Date,
       index: true,
     },
-    payments: [{
-      amount: {
-        type: Number,
-        required: true,
-        min: [0, "Payment amount cannot be negative"],
+    payments: [
+      {
+        amount: {
+          type: Number,
+          required: true,
+          min: [0, "Payment amount cannot be negative"],
+        },
+        paymentMethod: {
+          type: String,
+          enum: ["cash", "transfer"],
+          required: true,
+        },
+        paymentDate: {
+          type: Date,
+          default: Date.now,
+        },
+        receivedBy: {
+          type: Schema.Types.ObjectId,
+          ref: "Staff",
+          required: true,
+        },
+        receivedByName: {
+          type: String,
+          required: true,
+        },
+        transactionReference: {
+          type: String,
+          trim: true,
+        },
+        notes: {
+          type: String,
+          trim: true,
+        },
       },
-      paymentMethod: {
-        type: String,
-        enum: ["cash", "card", "mobile", "bank_transfer"],
-        required: true,
-      },
-      paymentDate: {
-        type: Date,
-        default: Date.now,
-      },
-      receivedBy: {
-        type: Schema.Types.ObjectId,
-        ref: "Staff",
-        required: true,
-      },
-      receivedByName: {
-        type: String,
-        required: true,
-      },
-      transactionReference: {
-        type: String,
-        trim: true,
-      },
-      notes: {
-        type: String,
-        trim: true,
-      },
-    }],
-    
+    ],
     notes: {
       type: String,
       trim: true,
@@ -177,20 +216,57 @@ const saleSchema = new Schema<ISale>(
   { timestamps: true }
 );
 
-// Indexes
-saleSchema.index({ shopId: 1, date: -1 });
-saleSchema.index({ shopId: 1, isCredit: 1, creditStatus: 1 });
-saleSchema.index({ shopId: 1, customerPhone: 1 });
-saleSchema.index({ itemName: "text", customerName: "text", notes: "text" });
+// Compound indexes for common queries
+ticketSchema.index({ shopId: 1, date: -1 });
+ticketSchema.index({ shopId: 1, isCredit: 1, creditStatus: 1 });
+ticketSchema.index({ shopId: 1, customerPhone: 1 });
+ticketSchema.index({ shopId: 1, soldBy: 1, date: -1 });
+ticketSchema.index({ ticketNumber: "text", customerName: "text", notes: "text" });
 
-// Virtuals
-saleSchema.virtual("profitPercentage").get(function () {
-  if (this.costPrice === 0) return 0;
-  return ((this.profitAmount / (this.costPrice * this.quantitySold)) * 100).toFixed(2);
+// Virtual for average item price
+ticketSchema.virtual("averageItemPrice").get(function () {
+  if (this.totalItemCount === 0) return 0;
+  return (this.totalAmount / this.totalItemCount).toFixed(2);
 });
 
-saleSchema.set("toJSON", { virtuals: true });
-saleSchema.set("toObject", { virtuals: true });
+// Virtual for profit margin percentage
+ticketSchema.virtual("profitMarginPercentage").get(function () {
+  if (this.totalAmount === 0) return 0;
+  return ((this.totalProfit / this.totalAmount) * 100).toFixed(2);
+});
 
-const Sale = mongoose.model<ISale>("Sale", saleSchema);
-export default Sale;
+ticketSchema.set("toJSON", { virtuals: true });
+ticketSchema.set("toObject", { virtuals: true });
+
+// Pre-save hook to generate ticket number
+ticketSchema.pre("save", async function (next) {
+  if (this.isNew && !this.ticketNumber) {
+    try {
+      // Find the ticket with the highest number for this shop
+      const lastTicket = await mongoose.model("Ticket")
+        .findOne({ shopId: this.shopId })
+        .sort({ ticketNumber: -1 })
+        .select("ticketNumber");
+      
+      let sequence = 1;
+      if (lastTicket && lastTicket.ticketNumber) {
+        // Extract the numeric part from the ticket number (e.g., "0001" -> 1)
+        const lastSequence = parseInt(lastTicket.ticketNumber, 10);
+        if (!isNaN(lastSequence) && lastSequence > 0) {
+          sequence = lastSequence + 1;
+        }
+      }
+      
+      // Format as 4-digit number (0001, 0002, etc.)
+      // This ensures proper string sorting: "0001" < "0002" < ... < "9999"
+      this.ticketNumber = String(sequence).padStart(4, "0");
+    } catch (error) {
+      // If there's an error, default to 1
+      this.ticketNumber = "0001";
+    }
+  }
+  next();
+});
+
+const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
+export default Ticket;

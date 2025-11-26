@@ -17,55 +17,22 @@ import {
   InternalServerError,
 } from "../../../shared/utils/AppError";
 import { Types } from "mongoose";
+import type {
+  ResetTokenEntry,
+  ResetTokenStore,
+  PasswordResetRequestInput,
+  VerifyPasswordResetOtpInput,
+  ResetPasswordInput,
+  ChangePasswordInput,
+  DashboardPeriod,
+} from "../types";
 
 const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
 const MAX_OTP_ATTEMPTS = 5;
 const RESET_TOKEN_EXPIRY = 15 * 60 * 1000; // 15 minutes
 
-type ResetTokenEntry = {
-  shopId: string;
-  phoneNumber: string;
-  expiresAt: Date;
-};
-
-type ResetTokenStore = Map<string, ResetTokenEntry>;
-
 // Store for reset tokens (in production, use Redis)
 const resetTokenStore: ResetTokenStore = new Map();
-
-type PasswordResetRequestInput = {
-  shopName: string;
-  phoneNumber: string;
-  ip: string;
-  requestId: string;
-};
-
-type VerifyPasswordResetOtpInput = {
-  shopName: string;
-  phoneNumber: string;
-  otp: string;
-  ip: string;
-  requestId: string;
-};
-
-type ResetPasswordInput = {
-  resetToken: string;
-  newPassword: string;
-  ip: string;
-  requestId: string;
-};
-
-type ChangePasswordInput = {
-  shopId: string;
-  role: "owner" | "staff";
-  profileId: string;
-  currentPassword: string;
-  newPassword: string;
-  ip: string;
-  requestId: string;
-};
-
-export type DashboardPeriod = "today" | "week";
 
 export class UserService {
   constructor(private readonly tokenStore: ResetTokenStore = resetTokenStore) {}
@@ -447,12 +414,30 @@ export class UserService {
 
       const expensesData = expensesAggregation[0] || { totalExpenses: 0 };
 
-      // Get low stock items count (same for both periods)
-      const lowStockCount = await Inventory.countDocuments({
+      // Get low stock items 
+      const lowStockItemsList = await Inventory.find({
         shopId: new Types.ObjectId(shopId),
         isActive: true,
         isLowStock: true,
-      });
+      })
+        .select("_id name sku category availableQuantity reorderLevel unit sellingPrice costPrice")
+        .sort({ availableQuantity: 1 })
+        .lean();
+
+      const lowStockCount = lowStockItemsList.length;
+
+      // Format low stock items for response
+      const formattedLowStockItems = lowStockItemsList.map((item: any) => ({
+        id: item._id.toString(),
+        name: item.name,
+        sku: item.sku,
+        category: item.category,
+        availableQuantity: item.availableQuantity,
+        reorderLevel: item.reorderLevel,
+        unit: item.unit,
+        sellingPrice: item.sellingPrice,
+        costPrice: item.costPrice,
+      }));
 
       // Calculate profit (revenue - expenses)
       const profit = salesData.totalProfit - expensesData.totalExpenses;
@@ -500,7 +485,10 @@ export class UserService {
           period,
           sales: salesData.totalRevenue,
           expenses: expensesData.totalExpenses,
-          lowStockItems: lowStockCount,
+          lowStockItems: {
+            count: lowStockCount,
+            items: formattedLowStockItems,
+          },
           profit,
         },
       };
