@@ -1,48 +1,84 @@
 import { Document, Types } from "mongoose";
 
-export interface ISale extends Document {
-  _id: Types.ObjectId;
-  shopId: Types.ObjectId;
+export interface ITicketItem {
   itemId: Types.ObjectId;
   itemName: string;
   itemCategory?: string;
   quantitySold: number;
-  costPrice: number; 
+  costPrice: number;
   sellingPrice: number;
-  discount?: number;
-  taxAmount?: number;
-  totalAmount: number;
-  profitAmount: number;
+  discount: number;
+  lineTotal: number;
+  lineProfit: number;
+}
+
+// Main ticket interface
+export interface ITicket extends Document {
+  _id: Types.ObjectId;
+  ticketNumber: string; 
+  shopId: Types.ObjectId;
+  
+  // Items sold in this ticket
+  items: ITicketItem[];
+  
+  // Totals
+  subtotal: number; // Sum of all line totals before tax
+  taxAmount: number;
+  totalAmount: number; // Final amount after tax
+  totalProfit: number; // Sum of all line profits
+  totalItemCount: number; // Total quantity of all items
+  
+  // Staff and payment info
   soldBy: Types.ObjectId;
   soldByName: string;
   paymentMethod: "cash" | "transfer" | "credit";
   transactionReference?: string;
+  
+  // Customer info (required for credit sales)
   customerName?: string;
-  customerAddress?: string;
   customerPhone?: string;
+  customerAddress?: string;
+  
+  // Credit sale fields
   isCredit: boolean;
   creditStatus: "pending" | "partial" | "paid";
   amountPaid: number;
   amountOwed: number;
   dueDate?: Date;
   payments: ICreditPayment[];
+  
+  // Metadata
   notes?: string;
   date: Date;
   refunded: boolean;
   refundedAt?: Date;
   refundedBy?: Types.ObjectId;
   refundReason?: string;
+  
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface RecordSaleInput {
+export interface ICreditPayment {
+  amount: number;
+  paymentMethod: "cash" | "transfer";
+  paymentDate: Date;
+  receivedBy: Types.ObjectId;
+  receivedByName: string;
+  transactionReference?: string;
+  notes?: string;
+}
+
+// Input for creating a ticket
+export interface CreateTicketInput {
   shopId: string;
-  itemId: string;
-  quantity: number;
+  items: Array<{
+    itemId: string;
+    quantity: number;
+    discount?: number; // Per-item discount percentage
+  }>;
   soldBy: string;
   paymentMethod: "cash" | "transfer" | "credit";
-  discount?: number;
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
@@ -51,23 +87,10 @@ export interface RecordSaleInput {
   transactionReference?: string;
 }
 
-export interface UpdateSaleInput {
-  customerName?: string;
-  customerPhone?: string;
-  customerAddress?: string;
-  dueDate?: Date;
-  notes?: string;
-}
-
-export interface RefundSaleInput {
-  reason: string;
-  refundedBy: string;
-}
-
-export interface SalesQueryOptions {
+// Query options for fetching tickets
+export interface TicketQueryOptions {
   startDate?: Date;
   endDate?: Date;
-  itemId?: string;
   soldBy?: string;
   paymentMethod?: string;
   includeRefunded?: boolean;
@@ -80,12 +103,28 @@ export interface SalesQueryOptions {
   sortOrder?: "asc" | "desc";
 }
 
-export interface SalesAnalytics {
+// Ticket summary for list view
+export interface ITicketSummary {
+  _id: Types.ObjectId;
+  ticketNumber: string;
+  totalAmount: number;
+  totalItemCount: number;
+  soldByName: string;
+  paymentMethod: string;
+  date: Date;
+  isCredit: boolean;
+  creditStatus?: "pending" | "partial" | "paid";
+  amountOwed?: number;
+  refunded: boolean;
+}
+
+// Analytics
+export interface TicketAnalytics {
   totalRevenue: number;
   totalProfit: number;
   totalItemsSold: number;
-  totalTransactions: number;
-  averageTransactionValue: number;
+  totalTickets: number;
+  averageTicketValue: number;
   averageProfit: number;
   topSellingItems: Array<{
     itemId: string;
@@ -101,13 +140,15 @@ export interface SalesAnalytics {
   salesByStaff: Array<{
     staffId: string;
     staffName: string;
-    salesCount: number;
+    ticketCount: number;
     revenue: number;
+    profit: number;
   }>;
   dailySales?: Array<{
     date: string;
     revenue: number;
-    transactions: number;
+    tickets: number;
+    itemsSold: number;
   }>;
   refundedAmount?: number;
   refundedCount?: number;
@@ -121,31 +162,25 @@ export interface RequestMetadata {
   userShopId: string;
 }
 
-export interface InventoryItem {
-  _id: string;
-  name: string;
-  sku?: string;
-  availableQuantity: number;
-  costPrice: number;
-  sellingPrice: number;
-}
-
 export interface RecordCreditPaymentInput {
-  saleId: string;
+  ticketId: string;
   shopId: string;
   amount: number;
   paymentMethod: "cash" | "transfer";
-  receivedBy: string;  
+  receivedBy: string;
   transactionReference?: string;
   notes?: string;
 }
 
-export interface ICreditPayment {
-  amount: number;
-  paymentMethod: "cash" | "transfer";
-  paymentDate: Date;
-  receivedBy: Types.ObjectId;
-  receivedByName: string;
-  transactionReference?: string;
+export interface RefundTicketInput {
+  reason: string;
+  refundedBy: string;
+}
+
+export interface UpdateTicketInput {
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  dueDate?: Date;
   notes?: string;
 }

@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { AuthenticatedRequest } from "../../../shared/middleware/auth.middleware";
 import { asyncHandler } from "../../../shared/utils/asyncHandler";
-import { userService, type DashboardPeriod } from "../services/user.service";
+import { userService } from "../services/user.service";
 import { getAuthenticatedUser } from "../../../shared/middleware/auth.middleware";
+import type { DashboardPeriod } from "../types";
 
 // Request password reset
 export const requestPasswordResetController = asyncHandler(
