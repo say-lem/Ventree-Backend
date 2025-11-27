@@ -17,40 +17,16 @@ export class NotificationEmitter {
     this.subscriptions = new Map();
     this.setupSubscriber();
 
-    // Automatically subscribe to common notification channels when emitter is created.
-    // These subscriptions can be used by the WebSocket layer or other listeners.
-    this.initializeDefaultSubscriptions();
-  }
-
-  /**
-   * Initialize default Redis subscriptions so notifications are forwarded
-   * to local consumers without requiring manual subscription setup.
-   */
-  private initializeDefaultSubscriptions(): void {
-    // Listen for all shop notifications
-    this.redisSubscriber.psubscribe('notifications:shop:*').catch((error) => {
-      console.error('[NotificationEmitter] Failed to psubscribe to shop notifications:', error);
-    });
-
-    // Listen for specific user/staff/owner notifications
-    this.redisSubscriber.psubscribe('notifications:shop:*:staff:*').catch((error) => {
-      console.error('[NotificationEmitter] Failed to psubscribe to staff notifications:', error);
-    });
-
-    this.redisSubscriber.psubscribe('notifications:shop:*:owner:*').catch((error) => {
-      console.error('[NotificationEmitter] Failed to psubscribe to owner notifications:', error);
-    });
-
-    this.redisSubscriber.psubscribe('notifications:user:*').catch((error) => {
-      console.error('[NotificationEmitter] Failed to psubscribe to user notifications:', error);
-    });
+    // Pattern subscriptions removed to prevent double delivery
+    // WebSocket layer uses explicit subscriptions via subscribeToShop/subscribeToStaff/etc
   }
 
   /**
    * Setup Redis subscriber for incoming notifications
+   * Only handles explicit subscriptions (not pattern subscriptions)
    */
   private setupSubscriber(): void {
-    // ioredis uses 'message' event with pattern matching
+    // Handle messages from explicit subscriptions
     this.redisSubscriber.on('message', (channel: string, message: string) => {
       try {
         const notification: INotification = JSON.parse(message);
@@ -60,15 +36,8 @@ export class NotificationEmitter {
       }
     });
 
-    // Handle PMESSAGE for pattern subscriptions (if needed in future)
-    this.redisSubscriber.on('pmessage', (pattern: string, channel: string, message: string) => {
-      try {
-        const notification: INotification = JSON.parse(message);
-        this.handleIncomingNotification(channel, notification);
-      } catch (error) {
-        console.error('[NotificationEmitter] Error parsing notification from Redis (pattern):', error);
-      }
-    });
+    // Pattern subscriptions (pmessage) removed to prevent double delivery
+    // All subscriptions are now explicit via subscribe() method
   }
 
   /**

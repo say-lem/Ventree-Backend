@@ -3,6 +3,7 @@ import { ShopRepository } from "../repository/shop.repository";
 import { logInventoryAuditEvent } from "../utils/auditLogger";
 import { generateSKU } from "../utils/skuGenerator";
 import { Types } from "mongoose";
+import { AutoNotificationTriggers } from "../../notification";
 import {
   ValidationError,
   NotFoundError,
@@ -437,6 +438,35 @@ export class InventoryService {
         afterQuantity: updatedItem.availableQuantity,
       },
     });
+
+    // Trigger low stock / out of stock notifications when crossing thresholds
+    try {
+      if (updatedItem.availableQuantity === 0 && beforeQuantity > 0) {
+        await AutoNotificationTriggers.onOutOfStock(
+          item._id.toString(),
+          shopId,
+          item.name
+        );
+      } else if (
+        updatedItem.availableQuantity > 0 &&
+        beforeQuantity > item.reorderLevel &&
+        updatedItem.availableQuantity <= item.reorderLevel
+      ) {
+        await AutoNotificationTriggers.onLowStock(
+          item._id.toString(),
+          shopId,
+          item.name,
+          updatedItem.availableQuantity,
+          item.unit,
+          item.reorderLevel
+        );
+      }
+    } catch (notificationError) {
+      console.error(
+        "[InventoryService] Failed to trigger inventory notifications on adjustStock",
+        notificationError
+      );
+    }
 
     return updatedItem;
   }

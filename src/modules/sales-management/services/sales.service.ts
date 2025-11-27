@@ -4,6 +4,7 @@ import { ShopRepository } from "../repositories/shop.repository";
 import { StaffRepository } from "../../staff-management/repositories/staff.repository";
 import { logSalesAuditEvent } from "../utils/auditLogger";
 import { Types } from "mongoose";
+import { AutoNotificationTriggers } from "../../notification";
 import {
   ValidationError,
   NotFoundError,
@@ -204,6 +205,72 @@ export class TicketService {
         dueDate: isCredit ? (dueDate || this.getDefaultDueDate()) : undefined,
         payments: [],
       });
+
+      // After sale is successfully recorded, compute new stock level
+      const newAvailableQuantity = item.availableQuantity - quantity;
+
+      // Trigger low stock or out of stock notifications when crossing thresholds
+      try {
+        if (newAvailableQuantity === 0 && item.availableQuantity > 0) {
+          await AutoNotificationTriggers.onOutOfStock(
+            item._id.toString(),
+            shopId,
+            item.name,
+            {
+              id: userId,
+              shopId,
+              role: userRole,
+              profileId: userId,
+              staffName: staff.staffName,
+            }
+          );
+        } else if (
+          newAvailableQuantity > 0 &&
+          item.availableQuantity > item.reorderLevel &&
+          newAvailableQuantity <= item.reorderLevel
+        ) {
+          await AutoNotificationTriggers.onLowStock(
+            item._id.toString(),
+            shopId,
+            item.name,
+            newAvailableQuantity,
+            item.unit,
+            item.reorderLevel,
+            {
+              id: userId,
+              shopId,
+              role: userRole,
+              profileId: userId,
+              staffName: staff.staffName,
+            }
+          );
+        }
+      } catch (notificationError) {
+        // Do not fail the sale if notifications fail
+        console.error("[SalesService] Failed to trigger inventory notifications", notificationError);
+      }
+
+      // Trigger sale completed notification for the owner
+      try {
+        await AutoNotificationTriggers.onSaleCompleted(
+          sale._id.toString(),
+          shopId,
+          soldBy,
+          quantity,
+          calculations.totalAmount,
+          "NGN",
+          staff.staffName,
+          {
+            id: userId,
+            shopId,
+            role: userRole,
+            profileId: userId,
+            staffName: staff.staffName,
+          }
+        );
+      } catch (notificationError) {
+        console.error("[SalesService] Failed to trigger sale completed notification", notificationError);
+      }
 
       await logSalesAuditEvent({
         requestId,

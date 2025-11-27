@@ -80,6 +80,31 @@ export class NotificationService {
     // Validate shop access
     await this.validateShopAccess(shopId, authContext);
 
+    // Check for duplicate inventory notifications (LOW_STOCK, OUT_OF_STOCK)
+    // This prevents notification spam when stock fluctuates around threshold
+    if (inventoryId && (type === NotificationType.LOW_STOCK || type === NotificationType.OUT_OF_STOCK)) {
+      const deduplicationWindowMinutes = type === NotificationType.LOW_STOCK ? 24 * 60 : 60; // 24h for LOW_STOCK, 1h for OUT_OF_STOCK
+      
+      const recentNotification = await this.repository.findRecentNotification(
+        new Types.ObjectId(shopId),
+        new Types.ObjectId(inventoryId),
+        type,
+        deduplicationWindowMinutes
+      );
+
+      if (recentNotification) {
+        const timeSinceLastMs = Date.now() - recentNotification.created_at.getTime();
+        const minutesAgo = Math.floor(timeSinceLastMs / 60000);
+        
+        console.log(`[NotificationService] Duplicate ${type} notification suppressed for inventory ${inventoryId}. Last sent ${minutesAgo} minutes ago.`);
+        
+        // Return the recent notification instead of creating a duplicate
+        // Do not re-emit to prevent double delivery to clients who already received it
+        // Clients connecting after the original will fetch it via getNotifications API
+        return recentNotification;
+      }
+    }
+
     // Initialize vector clock with shop ID as replica ID
     const vectorClock = VectorClockUtil.init(shopId);
 
@@ -163,6 +188,11 @@ export class NotificationService {
 
   /**
    * Emit notification via Redis pub/sub
+   * 
+   * Strategy:
+   * - 'all': Broadcast to shop channel (includes owner + staff)
+   * - 'owner': Send ONLY to owner channel (prevents double-delivery)
+   * - 'staff': Send ONLY to staff-specific channel
    */
   private async emitNotification(
     notification: INotification,
@@ -177,23 +207,21 @@ export class NotificationService {
 
     try {
       if (recipientType === 'all') {
-        // Broadcast to entire shop
+        // Broadcast to entire shop (owners and staff)
         await this.emitter.emitToShop(shopId, notification);
       } else if (recipientType === 'staff' && staffId) {
-        // Emit to specific staff member
+        // Emit to specific staff member only
         await this.emitter.emitToStaff(shopId, staffId.toString(), notification);
       } else if (recipientType === 'owner') {
-        // Emit to owner using 'owner' as profileId per JWT auth contract
-        // Also emit to shop channel for broader visibility
+        // Emit to owner only, via dedicated owner channel
+        // Owner will not receive a duplicate via the shop broadcast channel
         await this.emitter.emitToOwner(shopId, 'owner', notification);
-        await this.emitter.emitToShop(shopId, notification);
       }
     } catch (error) {
       // Log but don't fail notification creation
       console.error('[NotificationService] Failed to emit notification via Redis:', error);
     }
   }
-
   /**
    * Get notifications for a user
    */

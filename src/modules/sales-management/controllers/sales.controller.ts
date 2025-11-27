@@ -28,7 +28,7 @@ export const createTicket = asyncHandler(async (req: AuthenticatedRequest, res: 
   const ticket = await ticketService.createTicket(ticketData, {
     requestId,
     ip: req.ip || "unknown",
-    userId: req.user.profileId,
+    userId: req.user.shopId,
     userRole: req.user.role,
     userShopId: req.user.shopId,
   });
