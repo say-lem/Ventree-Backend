@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification WebSocket Test Client</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .notification {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .notification.unread {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .notification-header {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        .notification-time {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        #notifications {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔔 Notification WebSocket Test Client</h1>
+    
+    <div class="container">
+        <h2>Connection Settings</h2>
+        <div>
+            <label>Server URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:5000" style="width: 300px;">
+        </div>
+        <div>
+            <label>Access Token:</label>
+            <input type="text" id="accessToken" placeholder="Paste your JWT token here" style="width: 500px;">
+        </div>
+        <div>
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+        <div id="status" class="status disconnected">Disconnected</div>
+    </div>
+
+    <div class="container">
+        <h2>Connection Info</h2>
+        <div id="connectionInfo">Not connected</div>
+    </div>
+
+    <div class="container">
+        <h2>Notifications (<span id="notificationCount">0</span>)</h2>
+        <div id="notifications"></div>
+    </div>
+
+    <div class="container">
+        <h2>Event Log</h2>
+        <div id="log" class="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        let socket = null;
+        let notificationCount = 0;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function addNotification(notification) {
+            notificationCount++;
+            document.getElementById('notificationCount').textContent = notificationCount;
+
+            const notificationsDiv = document.getElementById('notifications');
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = 'notification' + (notification.isRead ? '' : ' unread');
+            
+            const time = new Date(notification.created_at || Date.now()).toLocaleString();
+            
+            notificationDiv.innerHTML = `
+                <div class="notification-header">${notification.type.toUpperCase()}</div>
+                <div>${notification.message}</div>
+                <div class="notification-time">${time}</div>
+            `;
+            
+            notificationsDiv.insertBefore(notificationDiv, notificationsDiv.firstChild);
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const token = document.getElementById('accessToken').value;
+
+            if (!token) {
+                alert('Please enter your access token');
+                return;
+            }
+
+            log(`Connecting to ${serverUrl}...`);
+
+            socket = io(serverUrl, {
+                path: '/socket.io/notifications',
+                auth: {
+                    token: token
+                },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log('✅ Connected to server');
+                updateStatus(true);
+            });
+
+            socket.on('connected', (data) => {
+                log(`✅ Connection confirmed: ${JSON.stringify(data)}`);
+                document.getElementById('connectionInfo').innerHTML = `
+                    <strong>User ID:</strong> ${data.userId}<br>
+                    <strong>Shop ID:</strong> ${data.shopId}<br>
+                    <strong>Role:</strong> ${data.role}
+                `;
+            });
+
+            socket.on('notification', (data) => {
+                log(`📨 Notification received: ${data.data.type} - ${data.data.message}`);
+                addNotification(data.data);
+            });
+
+            socket.on('disconnect', () => {
+                log('❌ Disconnected from server');
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection error: ${error.message}`);
+                updateStatus(false);
+            });
+
+            socket.on('pong', () => {
+                log('🏓 Pong received');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Disconnected');
+                updateStatus(false);
+            }
+        }
+
+        // Allow Enter key to connect
+        document.getElementById('accessToken').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                connect();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
