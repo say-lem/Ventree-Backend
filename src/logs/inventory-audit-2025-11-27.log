@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-27T21:24:24.839Z","requestId":"d073688a-741c-430c-a7b9-9819721ee145","action":"INVENTORY_LIST_VIEWED","shopId":"6921a245f6b31bb3682e2b83","performedBy":{"role":"owner"},"details":{"count":2,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
