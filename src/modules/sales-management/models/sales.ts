@@ -55,8 +55,7 @@ const ticketSchema = new Schema<ITicket>(
   {
     ticketNumber: {
       type: String,
-      required: true,
-      unique: true,
+      required: false, // Auto-generated in pre-save hook
       index: true,
     },
     shopId: {
@@ -221,6 +220,7 @@ ticketSchema.index({ shopId: 1, date: -1 });
 ticketSchema.index({ shopId: 1, isCredit: 1, creditStatus: 1 });
 ticketSchema.index({ shopId: 1, customerPhone: 1 });
 ticketSchema.index({ shopId: 1, soldBy: 1, date: -1 });
+ticketSchema.index({ shopId: 1, ticketNumber: 1 }, { unique: true }); // Unique ticket number per shop
 ticketSchema.index({ ticketNumber: "text", customerName: "text", notes: "text" });
 
 // Virtual for average item price
@@ -240,6 +240,7 @@ ticketSchema.set("toObject", { virtuals: true });
 
 // Pre-save hook to generate ticket number
 ticketSchema.pre("save", async function (next) {
+  // Always generate ticketNumber for new documents if not already set
   if (this.isNew && !this.ticketNumber) {
     try {
       // Find the ticket with the highest number for this shop
@@ -266,6 +267,13 @@ ticketSchema.pre("save", async function (next) {
     }
   }
   next();
+});
+
+// Post-validate hook to ensure ticketNumber is always set (as a safety check)
+ticketSchema.post("validate", function () {
+  if (this.isNew && !this.ticketNumber) {
+    this.ticketNumber = "0001";
+  }
 });
 
 const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
