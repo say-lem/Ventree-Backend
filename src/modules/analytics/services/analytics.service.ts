@@ -2,6 +2,7 @@ import { TicketRepository } from "../../sales-management/repositories/sales.repo
 import { InventoryRepository } from "../../inventory-mgt/repository/inventory.repository";
 import { ShopRepository } from "../../sales-management/repositories/shop.repository";
 import { AnalyticsRepository } from "../repositories/analytics.repository";
+import AnalyticsSnapshotModel from "../models/analytics.model";
 import { TicketAnalytics } from "../../sales-management/types";
 import { IInventoryItem } from "../../inventory-mgt/types";
 import {
@@ -17,6 +18,9 @@ import {
   ProfitPeriod,
 } from "../types/analytics.types";
 import { AuthorizationError, NotFoundError } from "../../../shared/utils/AppError";
+
+const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
+const SALES_TREND_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export class AnalyticsService {
   private saleRepository: TicketRepository;
@@ -59,6 +63,15 @@ export class AnalyticsService {
     const start = this.getStartOfDay(today);
     const end = this.getEndOfDay(today);
 
+    const existingSnapshot = await AnalyticsSnapshotModel.findOne({
+      shopId,
+      type: "dashboard_overview",
+    }).sort({ createdAt: -1 });
+
+    if (existingSnapshot && Date.now() - existingSnapshot.createdAt.getTime() < DASHBOARD_CACHE_TTL_MS) {
+      return existingSnapshot.payload as DashboardOverview;
+    }
+
     const [salesAnalyticsRaw, expensesTotal, lowStockItems, outOfStockItems] = await Promise.all([
       this.saleRepository.getAnalytics(shopId, {
         startDate: start,
@@ -76,8 +89,7 @@ export class AnalyticsService {
     const totalCogs = totalSales - totalProfit;
     const profit = totalProfit - expensesTotal;
     const lowStockAlertCount = lowStockItems.length + outOfStockItems.length;
-
-    return {
+    const overview: DashboardOverview = {
       date: start.toISOString(),
       totalSales,
       totalCogs,
@@ -86,6 +98,20 @@ export class AnalyticsService {
       lowStockAlertCount,
       totalTransactions: salesAnalytics.totalTickets || 0,
     };
+
+    await AnalyticsSnapshotModel.findOneAndUpdate(
+      { shopId, type: "dashboard_overview" },
+      {
+        shopId,
+        type: "dashboard_overview",
+        periodStart: start,
+        periodEnd: end,
+        payload: overview,
+      },
+      { upsert: true, new: true }
+    );
+
+    return overview;
   }
 
   async getSalesTrend(
@@ -98,6 +124,17 @@ export class AnalyticsService {
     const now = new Date();
     const start = this.getStartOfDay(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
 
+    const type = `sales_trend_${days}_${includeRefunded ? "include_refunded" : "exclude_refunded"}`;
+
+    const existingSnapshot = await AnalyticsSnapshotModel.findOne({
+      shopId,
+      type,
+    }).sort({ createdAt: -1 });
+
+    if (existingSnapshot && Date.now() - existingSnapshot.createdAt.getTime() < SALES_TREND_CACHE_TTL_MS) {
+      return existingSnapshot.payload as SalesTrendPoint[];
+    }
+
     const analytics = (await this.saleRepository.getAnalytics(shopId, {
       startDate: start,
       endDate: now,
@@ -106,10 +143,24 @@ export class AnalyticsService {
 
     const dailySales = analytics.dailySales || [];
 
-    return dailySales.map((day) => ({
+    const trend = dailySales.map((day) => ({
       date: day.date,
       revenue: day.revenue,
     }));
+
+    await AnalyticsSnapshotModel.findOneAndUpdate(
+      { shopId, type },
+      {
+        shopId,
+        type,
+        periodStart: start,
+        periodEnd: now,
+        payload: trend,
+      },
+      { upsert: true, new: true }
+    );
+
+    return trend;
   }
 
   async getBestSellers(

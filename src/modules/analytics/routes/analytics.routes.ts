@@ -24,11 +24,27 @@ router.get(
 );
 
 router.get(
+  "/:shopId/sales-trend/export",
+  analyticsValidator.salesTrendValidator,
+  verifyShopAccess,
+  requireRole("owner", "staff"),
+  analyticsController.exportSalesTrendCsv
+);
+
+router.get(
   "/:shopId/best-sellers",
   analyticsValidator.bestSellersValidator,
   verifyShopAccess,
   requireRole("owner", "staff"),
   analyticsController.getBestSellers
+);
+
+router.get(
+  "/:shopId/best-sellers/export",
+  analyticsValidator.bestSellersValidator,
+  verifyShopAccess,
+  requireRole("owner", "staff"),
+  analyticsController.exportBestSellersCsv
 );
 
 router.get(
@@ -53,6 +69,14 @@ router.get(
   verifyShopAccess,
   requireRole("owner", "staff"),
   analyticsController.getProfitSummary
+);
+
+router.get(
+  "/:shopId/profit-summary/export",
+  analyticsValidator.profitSummaryValidator,
+  verifyShopAccess,
+  requireRole("owner", "staff"),
+  analyticsController.exportProfitSummaryCsv
 );
 
 export default router;
