@@ -76,6 +76,7 @@ export interface CreateTicketInput {
     itemId: string;
     quantity: number;
     discount?: number; // Per-item discount percentage
+    sellingPrice?: number; // Optional custom selling price (overrides inventory selling price)
   }>;
   soldBy: string;
   paymentMethod: "cash" | "transfer" | "credit";

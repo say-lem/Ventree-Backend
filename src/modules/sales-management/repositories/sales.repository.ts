@@ -4,8 +4,37 @@ import { Types } from "mongoose";
 
 export class TicketRepository {
   
+  // Generate next ticket number for a shop
+  private async generateTicketNumber(shopId: Types.ObjectId): Promise<string> {
+    try {
+      // Find the ticket with the highest number for this shop
+      const lastTicket = await Ticket.findOne({ shopId })
+        .sort({ ticketNumber: -1 })
+        .select("ticketNumber");
+      
+      let sequence = 1;
+      if (lastTicket && lastTicket.ticketNumber) {
+        // Extract the numeric part from the ticket number (e.g., "0001" -> 1)
+        const lastSequence = parseInt(lastTicket.ticketNumber, 10);
+        if (!isNaN(lastSequence) && lastSequence > 0) {
+          sequence = lastSequence + 1;
+        }
+      }
+      
+      // Format as 4-digit number (0001, 0002, etc.)
+      return String(sequence).padStart(4, "0");
+    } catch (error) {
+      // If there's an error, default to 1
+      return "0001";
+    }
+  }
+  
   // Create new ticket
   async create(data: Partial<ITicket>): Promise<ITicket> {
+    // Generate ticketNumber if not provided
+    if (!data.ticketNumber && data.shopId) {
+      data.ticketNumber = await this.generateTicketNumber(data.shopId as Types.ObjectId);
+    }
     return await Ticket.create(data);
   }
   
