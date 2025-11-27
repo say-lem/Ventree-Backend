@@ -17,6 +17,7 @@ import { ValidationError } from "../../../shared/utils/AppError";
 export const createExpenseController = async (req: Request, res: Response) => {
   
   try {
+    console.log("Creating expense with body:", req.body);
     const { shopId, staffId, amount, title, category, notes } = req.body;
     const authUser = req.user
     const uploader = staffId || shopId
@@ -33,9 +34,9 @@ export const createExpenseController = async (req: Request, res: Response) => {
 // GET ALL EXPENSES
 export const getExpensesController = async (req: Request, res: Response) => {
   try {
-    const { shopId, staffId } = req.body;
+    const { shopId } = req.params;
 
-    const expenses = await getExpensesService({ shopId, staffId, reqUser: req.user });
+    const expenses = await getExpensesService({ shopId, reqUser: req.user });
 
     return res.status(200).json({ success: true, data: expenses });
   } catch (error: any) {
@@ -66,9 +67,9 @@ export const getFilteredExpensesController = async (req: Request, res: Response)
 // GET SINGLE EXPENSE
 export const getSingleExpenseController = async (req: Request, res: Response) => {
   try {
-    const { shopId, staffId, expenseId } = req.params;
+    const { shopId, expenseId } = req.params;
 
-    const expense = await getSingleExpenseService({ shopId, staffId, expenseId, reqUser: req.user });
+    const expense = await getSingleExpenseService({ shopId, expenseId, reqUser: req.user });
 
     return res.status(200).json({ success: true, data: expense });
   } catch (error: any) {
@@ -81,10 +82,9 @@ export const getSingleExpenseController = async (req: Request, res: Response) =>
 export const updateExpenseController = async (req: Request, res: Response) => {
   try {
     const { shopId, expenseId } = req.params;
-    const { staffId } = req.body
-    const updateData = req.body.updateData;
-
-    const updatedExpense = await updateExpenseService({ shopId, staffId, expenseId, updateData, reqUser: req.user });
+    const updateData = req.body;
+    console.log(req.user)
+    const updatedExpense = await updateExpenseService({ shopId, expenseId, updateData, reqUser: req.user });
 
     return res.status(200).json({ success: true, data: updatedExpense });
   } catch (error: any) {

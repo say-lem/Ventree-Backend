@@ -12,6 +12,7 @@ import { staffRoutes } from "./modules/staff-management";
 import { salesRoutes } from "./modules/sales-management";
 import { notificationRoutes } from "./modules/notification";
 import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
+import { userRouter } from "./modules/user";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
 import dotenv from "dotenv";
 
@@ -55,6 +56,7 @@ app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/sales", salesRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/user", userRouter);
 
 // 404 handler 
 app.use(notFoundHandler);
