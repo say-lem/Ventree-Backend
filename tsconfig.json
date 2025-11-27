@@ -6,10 +6,10 @@
 
     // Environment
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "CommonJs",
     "lib": ["ES2020"],
     "esModuleInterop": true,
-    "moduleResolution": "Node",
+    // "moduleResolution": "",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
 

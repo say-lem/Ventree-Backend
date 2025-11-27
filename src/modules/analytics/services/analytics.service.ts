@@ -1,8 +1,8 @@
-import { SaleRepository } from "../../sales-management/repositories/sales.repository";
+import { TicketRepository } from "../../sales-management/repositories/sales.repository";
 import { InventoryRepository } from "../../inventory-mgt/repository/inventory.repository";
 import { ShopRepository } from "../../sales-management/repositories/shop.repository";
 import { AnalyticsRepository } from "../repositories/analytics.repository";
-import { SalesAnalytics } from "../../sales-management/types";
+import { TicketAnalytics } from "../../sales-management/types";
 import { IInventoryItem } from "../../inventory-mgt/types";
 import {
   AnalyticsContext,
@@ -19,13 +19,13 @@ import {
 import { AuthorizationError, NotFoundError } from "../../../shared/utils/AppError";
 
 export class AnalyticsService {
-  private saleRepository: SaleRepository;
+  private saleRepository: TicketRepository;
   private inventoryRepository: InventoryRepository;
   private shopRepository: ShopRepository;
   private analyticsRepository: AnalyticsRepository;
 
   constructor() {
-    this.saleRepository = new SaleRepository();
+    this.saleRepository = new TicketRepository();
     this.inventoryRepository = new InventoryRepository();
     this.shopRepository = new ShopRepository();
     this.analyticsRepository = new AnalyticsRepository();
@@ -70,7 +70,7 @@ export class AnalyticsService {
       this.inventoryRepository.getOutOfStockItems(shopId),
     ]);
 
-    const salesAnalytics = salesAnalyticsRaw as SalesAnalytics;
+    const salesAnalytics = salesAnalyticsRaw as TicketAnalytics;
     const totalSales = salesAnalytics.totalRevenue || 0;
     const totalProfit = salesAnalytics.totalProfit || 0;
     const totalCogs = totalSales - totalProfit;
@@ -84,7 +84,7 @@ export class AnalyticsService {
       totalExpenses: expensesTotal,
       profit,
       lowStockAlertCount,
-      totalTransactions: salesAnalytics.totalTransactions || 0,
+      totalTransactions: salesAnalytics.totalTickets || 0,
     };
   }
 
@@ -102,7 +102,7 @@ export class AnalyticsService {
       startDate: start,
       endDate: now,
       includeRefunded,
-    })) as SalesAnalytics;
+    })) as TicketAnalytics;
 
     const dailySales = analytics.dailySales || [];
 
@@ -123,7 +123,7 @@ export class AnalyticsService {
       startDate: filters.startDate,
       endDate: filters.endDate,
       includeRefunded: false,
-    })) as SalesAnalytics;
+    })) as TicketAnalytics;
 
     const totalRevenue = analytics.totalRevenue || 0;
     const items = (analytics.topSellingItems || []).slice().sort((a, b) => b.revenue - a.revenue);
@@ -228,7 +228,7 @@ export class AnalyticsService {
           this.analyticsRepository.getExpensesTotal(shopId, start, end),
         ]);
 
-        const salesAnalytics = salesAnalyticsRaw as SalesAnalytics;
+        const salesAnalytics = salesAnalyticsRaw as TicketAnalytics;
         const revenue = salesAnalytics.totalRevenue || 0;
         const totalProfit = salesAnalytics.totalProfit || 0;
         const cogs = revenue - totalProfit;
@@ -266,7 +266,7 @@ export class AnalyticsService {
           this.analyticsRepository.getExpensesTotal(shopId, start, end),
         ]);
 
-        const salesAnalytics = salesAnalyticsRaw as SalesAnalytics;
+        const salesAnalytics = salesAnalyticsRaw as TicketAnalytics;
         const revenue = salesAnalytics.totalRevenue || 0;
         const totalProfit = salesAnalytics.totalProfit || 0;
         const cogs = revenue - totalProfit;

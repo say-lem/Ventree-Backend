@@ -57,6 +57,5 @@ const expenseSchema = new Schema<IExpense>(
     }
 )
 
-expenseSchema.index({ shopId: 1, createdAt: -1 });
 
 export default mongoose.model<IExpense>("Expense", expenseSchema);

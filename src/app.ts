@@ -10,9 +10,10 @@ import { expensesRouter } from "./modules/expenses/routes/expenses.routes";
 import { staffRoutes } from "./modules/staff-management";
 //import { inventoryMgtRouter } from "./modules/inventory-mgt";
 import { salesRoutes } from "./modules/sales-management";
-import { analyticsRoutes } from "./modules/analytics";
 import { notificationRoutes } from "./modules/notification";
+import { analyticsRoutes } from "./modules/analytics";
 import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
+import { userRouter } from "./modules/user";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
 import dotenv from "dotenv";
 
@@ -48,6 +49,11 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
+// Health check endpoint
+app.get("/api/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "ok", message: "Server running" });
+});
+
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/v1/shop", shopRouter);
@@ -55,8 +61,8 @@ app.use("/api/v1/expenses", expensesRouter);
 app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/sales", salesRoutes);
-app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/user", userRouter);
 
 // 404 handler 
 app.use(notFoundHandler);
