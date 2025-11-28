@@ -292,15 +292,16 @@ export const getProfitSummary = asyncHandler(
 
     const requestId = crypto.randomUUID();
     const { shopId } = req.params;
-    const { period = "weekly", weeks = "4" } = req.query;
+    const { period = "weekly", periods = "4" } = req.query;
 
-    const parsedWeeks = parseInt(weeks as string, 10) || 4;
-    const parsedPeriod = (period as string) === "monthly" ? "monthly" : "weekly";
+    const parsedPeriods = parseInt(periods as string, 10) || 4;
+    const parsedPeriod = (period as string) === "monthly" ? "monthly" : 
+                          (period as string) === "daily" ? "daily" : "weekly";
 
     const summary = await analyticsService.getProfitSummary(
       shopId,
       parsedPeriod,
-      parsedWeeks,
+      parsedPeriods,
       {
         requestId,
         ip: req.ip || "unknown",
@@ -331,15 +332,16 @@ export const exportProfitSummaryCsv = asyncHandler(
 
     const requestId = crypto.randomUUID();
     const { shopId } = req.params;
-    const { period = "weekly", weeks = "4" } = req.query;
+    const { period = "weekly", periods = "4" } = req.query;
 
-    const parsedWeeks = parseInt(weeks as string, 10) || 4;
-    const parsedPeriod = (period as string) === "monthly" ? "monthly" : "weekly";
+    const parsedPeriods = parseInt(periods as string, 10) || 4;
+    const parsedPeriod = (period as string) === "monthly" ? "monthly" : 
+                          (period as string) === "daily" ? "daily" : "weekly";
 
     const summary = await analyticsService.getProfitSummary(
       shopId,
       parsedPeriod,
-      parsedWeeks,
+      parsedPeriods,
       {
         requestId,
         ip: req.ip || "unknown",

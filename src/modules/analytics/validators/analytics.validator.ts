@@ -52,10 +52,10 @@ export const profitSummaryValidator = [
   param("shopId").isMongoId().withMessage("Invalid shop ID"),
   query("period")
     .optional()
-    .isIn(["weekly", "monthly"])
-    .withMessage("period must be weekly or monthly"),
-  query("weeks")
+    .isIn(["daily", "weekly", "monthly"])
+    .withMessage("period must be daily, weekly, or monthly"),
+  query("periods")
     .optional()
-    .isInt({ min: 1, max: 12 })
-    .withMessage("weeks must be between 1 and 12"),
+    .isInt({ min: 1, max: 365 })
+    .withMessage("periods must be between 1 and 365"),
 ];

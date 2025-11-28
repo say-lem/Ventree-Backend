@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-28T02:57:32.994Z","requestId":"cafbbc99-a718-4dda-beca-4586e1f7d398","action":"TICKET_CREATED","shopId":"6925c9061e34f45241127aae","performedBy":{"userId":"owner","role":"owner"},"saleId":"69290f9ce6fdd286df10e5dd","ip":"::1","details":{"ticketNumber":"0001","itemCount":1,"totalAmount":108000,"paymentMethod":"cash","isCredit":false}}

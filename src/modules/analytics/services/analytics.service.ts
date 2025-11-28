@@ -257,7 +257,7 @@ export class AnalyticsService {
   async getProfitSummary(
     shopId: string,
     period: ProfitPeriod,
-    weeks: number,
+    periods: number,
     context: AnalyticsContext
   ): Promise<ProfitSummaryRow[]> {
     await this.validateShopAccess(shopId, context);
@@ -265,7 +265,7 @@ export class AnalyticsService {
 
     if (period === "monthly") {
       const now = new Date();
-      for (let i = weeks - 1; i >= 0; i--) {
+      for (let i = periods - 1; i >= 0; i--) {
         const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const start = this.getStartOfDay(ref);
         const end = this.getEndOfDay(new Date(ref.getFullYear(), ref.getMonth() + 1, 0));
@@ -285,7 +285,7 @@ export class AnalyticsService {
         const cogs = revenue - totalProfit;
         const profit = totalProfit - expensesTotal;
 
-        const labelIndex = weeks - i;
+        const labelIndex = periods - i;
 
         rows.push({
           label: `Month ${labelIndex}`,
@@ -297,11 +297,11 @@ export class AnalyticsService {
           profit,
         });
       }
-    } else {
+    } else if (period === "weekly") {
       const today = new Date();
       const endOfToday = this.getEndOfDay(today);
 
-      for (let i = weeks - 1; i >= 0; i--) {
+      for (let i = periods - 1; i >= 0; i--) {
         const periodEnd = new Date(endOfToday.getTime() - i * 7 * 24 * 60 * 60 * 1000);
         const periodStart = new Date(periodEnd.getTime() - 6 * 24 * 60 * 60 * 1000);
 
@@ -322,10 +322,44 @@ export class AnalyticsService {
         const totalProfit = salesAnalytics.totalProfit || 0;
         const cogs = revenue - totalProfit;
         const profit = totalProfit - expensesTotal;
-        const labelIndex = weeks - i;
+        const labelIndex = periods - i;
 
         rows.push({
           label: `Week ${labelIndex}`,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          revenue,
+          cogs,
+          expenses: expensesTotal,
+          profit,
+        });
+      }
+    } else if (period === "daily") {
+      const today = new Date();
+      const endOfToday = this.getEndOfDay(today);
+
+      for (let i = periods - 1; i >= 0; i--) {
+        const date = new Date(endOfToday.getTime() - i * 24 * 60 * 60 * 1000);
+        const start = this.getStartOfDay(date);
+        const end = this.getEndOfDay(date);
+
+        const [salesAnalyticsRaw, expensesTotal] = await Promise.all([
+          this.saleRepository.getAnalytics(shopId, {
+            startDate: start,
+            endDate: end,
+            includeRefunded: false,
+          }),
+          this.analyticsRepository.getExpensesTotal(shopId, start, end),
+        ]);
+
+        const salesAnalytics = salesAnalyticsRaw as TicketAnalytics;
+        const revenue = salesAnalytics.totalRevenue || 0;
+        const totalProfit = salesAnalytics.totalProfit || 0;
+        const cogs = revenue - totalProfit;
+        const profit = totalProfit - expensesTotal;
+
+        rows.push({
+          label: date.toLocaleDateString(),
           startDate: start.toISOString(),
           endDate: end.toISOString(),
           revenue,

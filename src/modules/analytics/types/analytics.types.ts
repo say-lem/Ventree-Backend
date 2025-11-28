@@ -67,4 +67,4 @@ export interface DateRangeFilters {
   endDate?: Date;
 }
 
-export type ProfitPeriod = "weekly" | "monthly";
+export type ProfitPeriod = "daily" | "weekly" | "monthly";
