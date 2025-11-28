@@ -389,7 +389,7 @@ export class UserService {
           $group: {
             _id: null,
             totalRevenue: { $sum: "$totalAmount" },
-            totalProfit: { $sum: "$profitAmount" },
+            totalProfit: { $sum: "$totalProfit" },
           },
         },
       ]);
