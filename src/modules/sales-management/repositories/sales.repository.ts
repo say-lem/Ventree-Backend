@@ -17,10 +17,21 @@ export class TicketRepository {
       
       let sequence = 1;
       if (lastTicket && lastTicket.ticketNumber) {
-        // Extract the numeric part from the ticket number (e.g., "ABC-0001" -> 1)
-        const parts = lastTicket.ticketNumber.split('-');
-        if (parts.length === 2) {
-          const lastSequence = parseInt(parts[1], 10);
+        // Check if ticket number has prefix format (e.g., "ABC-0001") or old format (e.g., "0001")
+        const ticketNum = lastTicket.ticketNumber;
+        
+        if (ticketNum.includes('-')) {
+          // New format: "ABC-0001"
+          const parts = ticketNum.split('-');
+          if (parts.length === 2) {
+            const lastSequence = parseInt(parts[1], 10);
+            if (!isNaN(lastSequence) && lastSequence > 0) {
+              sequence = lastSequence + 1;
+            }
+          }
+        } else {
+          // Old format: "0001" - parse directly
+          const lastSequence = parseInt(ticketNum, 10);
           if (!isNaN(lastSequence) && lastSequence > 0) {
             sequence = lastSequence + 1;
           }
