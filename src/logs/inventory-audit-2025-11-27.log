@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {"timestamp":"2025-11-27T06:30:16.375Z","requestId":"b4de2ae2-0d2c-4af8-9520-22283af6451f","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
 {"timestamp":"2025-11-27T06:30:47.622Z","requestId":"9e876d1f-efee-41cc-9e4d-76f888d2f21a","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
 {"timestamp":"2025-11-27T06:31:18.985Z","requestId":"9aaaf769-7b80-483a-94cd-a36f860b984b","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
@@ -359,3 +360,6 @@
 {"timestamp":"2025-11-27T11:44:44.227Z","requestId":"15a1763c-e293-4569-aa4f-1075bcbb2c40","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
 {"timestamp":"2025-11-27T11:45:15.160Z","requestId":"3e1410f8-f554-4480-9f26-0e0fb1e5a263","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
 {"timestamp":"2025-11-27T11:45:46.277Z","requestId":"d1c07f57-ad3e-4ce0-b97f-0832044a6e7f","action":"INVENTORY_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"role":"owner"},"details":{"count":7,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
+=======
+{"timestamp":"2025-11-27T21:24:24.839Z","requestId":"d073688a-741c-430c-a7b9-9819721ee145","action":"INVENTORY_LIST_VIEWED","shopId":"6921a245f6b31bb3682e2b83","performedBy":{"role":"owner"},"details":{"count":2,"filters":{"isActive":true,"page":1,"limit":20,"sortBy":"createdAt","sortOrder":"desc"}}}
+>>>>>>> 22db54063c0d9655aa05c7e4b04947a8cbec0c78

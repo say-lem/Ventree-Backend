@@ -29,6 +29,11 @@ export const createTicketValidation = [
     .isFloat({ min: 0, max: 50 })
     .withMessage("Discount must be between 0 and 50 percent"),
   
+  body("items.*.sellingPrice")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Selling price must be a positive number"),
+  
   body("soldBy")
     .trim()
     .notEmpty()

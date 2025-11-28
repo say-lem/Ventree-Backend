@@ -228,6 +228,7 @@ ticketSchema.index({ shopId: 1, date: -1 });
 ticketSchema.index({ shopId: 1, isCredit: 1, creditStatus: 1 });
 ticketSchema.index({ shopId: 1, customerPhone: 1 });
 ticketSchema.index({ shopId: 1, soldBy: 1, date: -1 });
+ticketSchema.index({ shopId: 1, ticketNumber: 1 }, { unique: true }); // Unique ticket number per shop
 ticketSchema.index({ ticketNumber: "text", customerName: "text", notes: "text" });
 
 // Virtual for average item price
