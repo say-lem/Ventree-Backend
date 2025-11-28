@@ -104,7 +104,7 @@ export class TicketService {
     let totalItemCount = 0;
 
     for (const inputItem of items) {
-      const { itemId, quantity, discount = 0 } = inputItem;
+      const { itemId, quantity, discount = 0, sellingPrice: customSellingPrice } = inputItem;
 
       // Validate discount
       if (discount < 0 || discount > 50) {
@@ -129,11 +129,21 @@ export class TicketService {
         );
       }
 
+      // Use custom selling price if provided, otherwise use inventory selling price
+      const sellingPrice = customSellingPrice !== undefined && customSellingPrice !== null 
+        ? customSellingPrice 
+        : inventoryItem.sellingPrice;
+
+      // Validate custom selling price is positive
+      if (sellingPrice < 0) {
+        throw new ValidationError(`Selling price must be a positive number for item ${itemId}`);
+      }
+
       // Calculate line item totals
-      const lineSubtotal = quantity * inventoryItem.sellingPrice;
+      const lineSubtotal = quantity * sellingPrice;
       const discountAmount = (lineSubtotal * discount) / 100;
       const lineTotal = lineSubtotal - discountAmount;
-      const lineProfit = quantity * (inventoryItem.sellingPrice - inventoryItem.costPrice) - discountAmount;
+      const lineProfit = quantity * (sellingPrice - inventoryItem.costPrice) - discountAmount;
 
       ticketItems.push({
         itemId: new Types.ObjectId(itemId),
@@ -141,7 +151,7 @@ export class TicketService {
         itemCategory: inventoryItem.category,
         quantitySold: quantity,
         costPrice: inventoryItem.costPrice,
-        sellingPrice: inventoryItem.sellingPrice,
+        sellingPrice: sellingPrice,
         discount,
         lineTotal,
         lineProfit,

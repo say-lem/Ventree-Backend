@@ -1,3 +1,8 @@
+{"timestamp":"2025-11-27T21:04:15.477Z","requestId":"f1414e18-a2df-4cc0-a162-6ab4e22031af","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
+{"timestamp":"2025-11-27T21:15:34.198Z","requestId":"9383149d-1cc4-4a4b-b8d9-bca918505cfa","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
+{"timestamp":"2025-11-27T21:24:04.968Z","requestId":"83908bc2-f4bc-44ba-a316-9b280dd31685","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
+{"timestamp":"2025-11-27T21:26:11.475Z","requestId":"c02f7c3e-d78c-4497-9c52-1efab158f91d","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
+{"timestamp":"2025-11-27T21:26:33.945Z","requestId":"71b8bc1b-4428-4623-8efc-2d839b498bae","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
 {"timestamp":"2025-11-27T05:41:53.372Z","requestId":"987a1f18-ae5c-4484-a5cd-9ff728a1d77a","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6915f51e6ddd4cecd38e7393","role":"owner"}
 {"timestamp":"2025-11-27T05:52:05.842Z","requestId":"9692295d-d282-44b9-b25e-50b0d151ac5e","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6915f51e6ddd4cecd38e7393","role":"owner"}
 {"timestamp":"2025-11-27T08:14:33.007Z","requestId":"b1fcbf0f-3f2c-4095-8444-3f8b6430d3fc","action":"LOGIN_SUCCESS","ip":"::1","shopId":"69190875b6a9f12b93e6357b","role":"owner"}
