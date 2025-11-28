@@ -4,9 +4,12 @@ import { Types } from "mongoose";
 
 export class TicketRepository {
   
-  // Generate next ticket number for a shop
-  private async generateTicketNumber(shopId: Types.ObjectId): Promise<string> {
+  // Generate next ticket number for a shop with prefix
+  private async generateTicketNumber(shopId: Types.ObjectId, shopName: string): Promise<string> {
     try {
+      // Create prefix from first 3 letters of shop name (uppercase)
+      const prefix = shopName.substring(0, 3).toUpperCase();
+      
       // Find the ticket with the highest number for this shop
       const lastTicket = await Ticket.findOne({ shopId })
         .sort({ ticketNumber: -1 })
@@ -14,28 +17,39 @@ export class TicketRepository {
       
       let sequence = 1;
       if (lastTicket && lastTicket.ticketNumber) {
-        // Extract the numeric part from the ticket number (e.g., "0001" -> 1)
-        const lastSequence = parseInt(lastTicket.ticketNumber, 10);
-        if (!isNaN(lastSequence) && lastSequence > 0) {
-          sequence = lastSequence + 1;
+        // Extract the numeric part from the ticket number (e.g., "ABC-0001" -> 1)
+        const parts = lastTicket.ticketNumber.split('-');
+        if (parts.length === 2) {
+          const lastSequence = parseInt(parts[1], 10);
+          if (!isNaN(lastSequence) && lastSequence > 0) {
+            sequence = lastSequence + 1;
+          }
         }
       }
       
-      // Format as 4-digit number (0001, 0002, etc.)
-      return String(sequence).padStart(4, "0");
+      // Format as PREFIX-0001, PREFIX-0002, etc.
+      return `${prefix}-${String(sequence).padStart(4, "0")}`;
     } catch (error) {
-      // If there's an error, default to 1
-      return "0001";
+      // If there's an error, default to first ticket with prefix
+      const prefix = shopName.substring(0, 3).toUpperCase();
+      return `${prefix}-0001`;
     }
   }
   
   // Create new ticket
-  async create(data: Partial<ITicket>): Promise<ITicket> {
+  async create(data: Partial<ITicket> & { shopName?: string }): Promise<ITicket> {
     // Generate ticketNumber if not provided
-    if (!data.ticketNumber && data.shopId) {
-      data.ticketNumber = await this.generateTicketNumber(data.shopId as Types.ObjectId);
+    if (!data.ticketNumber && data.shopId && data.shopName) {
+      data.ticketNumber = await this.generateTicketNumber(
+        data.shopId as Types.ObjectId, 
+        data.shopName
+      );
     }
-    return await Ticket.create(data);
+    
+    // Remove shopName from data before creating (if it's not part of the schema)
+    const { shopName, ...ticketData } = data;
+    
+    return await Ticket.create(ticketData);
   }
   
   // Find ticket by ID with full details

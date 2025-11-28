@@ -82,7 +82,8 @@ export const registerOwnerService = async ({
 
     // Try to send OTP, if it fails, delete the shop and throw error
     try {
-      await sendOTP(phoneNumber, otp);
+      const sentOTPResult = await sendOTP(phoneNumber, otp);
+      console.log(sentOTPResult)
     } catch (sendError) {
       await Shop.findByIdAndDelete(shop._id);
       await Staff.deleteOne({ _id: ownerStaffProfile._id });

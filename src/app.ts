@@ -11,6 +11,7 @@ import { staffRoutes } from "./modules/staff-management";
 //import { inventoryMgtRouter } from "./modules/inventory-mgt";
 import { salesRoutes } from "./modules/sales-management";
 import { notificationRoutes } from "./modules/notification";
+import { analyticsRoutes } from "./modules/analytics";
 import inventoryMgtRouter from "./modules/inventory-mgt/routes/Inventory.route";
 import { userRouter } from "./modules/user";
 import { errorHandler, notFoundHandler } from "./shared/middleware/errorHandler";
@@ -62,6 +63,7 @@ app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/sales", salesRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 // 404 handler 
 app.use(notFoundHandler);
