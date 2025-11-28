@@ -3,3 +3,4 @@
 {"timestamp":"2025-11-27T21:24:04.968Z","requestId":"83908bc2-f4bc-44ba-a316-9b280dd31685","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
 {"timestamp":"2025-11-27T21:26:11.475Z","requestId":"c02f7c3e-d78c-4497-9c52-1efab158f91d","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
 {"timestamp":"2025-11-27T21:26:33.945Z","requestId":"71b8bc1b-4428-4623-8efc-2d839b498bae","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
+{"timestamp":"2025-11-27T21:44:34.734Z","requestId":"8a790be6-2da1-416c-9737-23c8c50b1067","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
