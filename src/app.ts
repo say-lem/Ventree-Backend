@@ -63,6 +63,7 @@ app.use("/api/v1/inventory", inventoryMgtRouter);
 app.use("/api/v1/sales", salesRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 // 404 handler 
 app.use(notFoundHandler);
