@@ -56,7 +56,8 @@ const ticketSchema = new Schema<ITicket>(
     ticketNumber: {
       type: String,
       required: true,
-      index: true,
+      // REMOVED: unique: true (this made it globally unique)
+      // We'll add a compound index below for per-shop uniqueness
     },
     shopId: {
       type: Schema.Types.ObjectId,
@@ -215,7 +216,14 @@ const ticketSchema = new Schema<ITicket>(
   { timestamps: true }
 );
 
-// Compound indexes for common queries
+// ============================================
+// CRITICAL: COMPOUND UNIQUE INDEX
+// This ensures ticket numbers are unique PER SHOP, not globally
+// Shop A can have ticket "0001" AND Shop B can have ticket "0001"
+// ============================================
+ticketSchema.index({ shopId: 1, ticketNumber: 1 }, { unique: true });
+
+// Other compound indexes for common queries
 ticketSchema.index({ shopId: 1, date: -1 });
 ticketSchema.index({ shopId: 1, isCredit: 1, creditStatus: 1 });
 ticketSchema.index({ shopId: 1, customerPhone: 1 });
@@ -237,6 +245,49 @@ ticketSchema.virtual("profitMarginPercentage").get(function () {
 
 ticketSchema.set("toJSON", { virtuals: true });
 ticketSchema.set("toObject", { virtuals: true });
+
+// Pre-save hook to generate ticket number (PER SHOP)
+ticketSchema.pre("save", async function (next) {
+  if (this.isNew && !this.ticketNumber) {
+    try {
+      // Find the highest ticket number FOR THIS SPECIFIC SHOP
+      const result = await mongoose.model("Ticket").aggregate([
+        { 
+          $match: { 
+            shopId: this.shopId // Only look at tickets from THIS shop
+          } 
+        },
+        {
+          $project: {
+            numericTicket: { 
+              $convert: { 
+                input: "$ticketNumber", 
+                to: "int",
+                onError: 0,
+                onNull: 0
+              } 
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            maxNumber: { $max: "$numericTicket" }
+          }
+        }
+      ]);
+      
+      // Get the next number for THIS shop
+      const nextNumber = (result[0]?.maxNumber || 0) + 1;
+      this.ticketNumber = String(nextNumber).padStart(4, "0");
+      
+    } catch (error) {
+      console.error("Error generating ticket number:", error);
+      return next(new Error("Failed to generate ticket number"));
+    }
+  }
+  next();
+});
 
 const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
 export default Ticket;

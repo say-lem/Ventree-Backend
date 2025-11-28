@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-28T08:03:35.884Z","requestId":"a0383ffc-6031-4208-b2d0-291d25b70906","action":"STAFF_LIST_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"userId":"owner","role":"owner"},"details":{"count":2,"filters":{"includeInactive":false,"page":1,"limit":10}}}
