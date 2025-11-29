@@ -4,63 +4,34 @@ import { Types } from "mongoose";
 
 export class TicketRepository {
   
-  // Generate next ticket number for a shop with prefix
-  private async generateTicketNumber(shopId: Types.ObjectId, shopName: string): Promise<string> {
-    try {
-      // Create prefix from first 3 letters of shop name (uppercase)
-      const prefix = shopName.substring(0, 3).toUpperCase();
-      
-      // Find the ticket with the highest number for this shop
-      const lastTicket = await Ticket.findOne({ shopId })
-        .sort({ ticketNumber: -1 })
-        .select("ticketNumber");
-      
-      let sequence = 1;
-      if (lastTicket && lastTicket.ticketNumber) {
-        // Check if ticket number has prefix format (e.g., "ABC-0001") or old format (e.g., "0001")
-        const ticketNum = lastTicket.ticketNumber;
-        
-        if (ticketNum.includes('-')) {
-          // New format: "ABC-0001"
-          const parts = ticketNum.split('-');
-          if (parts.length === 2) {
-            const lastSequence = parseInt(parts[1], 10);
-            if (!isNaN(lastSequence) && lastSequence > 0) {
-              sequence = lastSequence + 1;
-            }
-          }
-        } else {
-          // Old format: "0001" - parse directly
-          const lastSequence = parseInt(ticketNum, 10);
-          if (!isNaN(lastSequence) && lastSequence > 0) {
-            sequence = lastSequence + 1;
-          }
-        }
+  // Generate next ticket number for a shop
+  async getNextTicketNumber(shopId: string): Promise<string> {
+    // Find the last ticket for this shop
+    const lastTicket = await Ticket.findOne({ shopId: new Types.ObjectId(shopId) })
+      .sort({ createdAt: -1, _id: -1 })
+      .select("ticketNumber")
+      .lean();
+    
+    let nextNumber = 1;
+    
+    if (lastTicket && lastTicket.ticketNumber) {
+      const currentNumber = parseInt(lastTicket.ticketNumber, 10);
+      if (!isNaN(currentNumber) && currentNumber > 0) {
+        nextNumber = currentNumber + 1;
       }
-      
-      // Format as PREFIX-0001, PREFIX-0002, etc.
-      return `${prefix}-${String(sequence).padStart(4, "0")}`;
-    } catch (error) {
-      // If there's an error, default to first ticket with prefix
-      const prefix = shopName.substring(0, 3).toUpperCase();
-      return `${prefix}-0001`;
     }
+    
+    return String(nextNumber).padStart(4, "0");
   }
   
   // Create new ticket
-  async create(data: Partial<ITicket> & { shopName?: string }): Promise<ITicket> {
-    // Generate ticketNumber if not provided
-    if (!data.ticketNumber && data.shopId && data.shopName) {
-      data.ticketNumber = await this.generateTicketNumber(
-        data.shopId as Types.ObjectId, 
-        data.shopName
-      );
+  async create(data: Partial<ITicket>): Promise<ITicket> {
+    // Generate ticket number if not provided
+    if (!data.ticketNumber && data.shopId) {
+      data.ticketNumber = await this.getNextTicketNumber(data.shopId.toString());
     }
     
-    // Remove shopName from data before creating (if it's not part of the schema)
-    const { shopName, ...ticketData } = data;
-    
-    return await Ticket.create(ticketData);
+    return await Ticket.create(data);
   }
   
   // Find ticket by ID with full details
