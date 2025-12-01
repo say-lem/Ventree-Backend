@@ -31,7 +31,10 @@ export class InventoryRepository {
   /**
    * Find item by barcode
    */
-  async findByBarcode(shopId: string, barcode: string): Promise<IInventoryItem | null> {
+  async findByBarcode(
+    shopId: string,
+    barcode: string
+  ): Promise<IInventoryItem | null> {
     return await Inventory.findOne({
       shopId: new Types.ObjectId(shopId),
       barcode,
@@ -41,7 +44,10 @@ export class InventoryRepository {
   /**
    * Find item by name (case-insensitive)
    */
-  async findByName(shopId: string, name: string): Promise<IInventoryItem | null> {
+  async findByName(
+    shopId: string,
+    name: string
+  ): Promise<IInventoryItem | null> {
     return await Inventory.findOne({
       shopId: new Types.ObjectId(shopId),
       name: { $regex: new RegExp(`^${name}$`, "i") },
@@ -54,11 +60,16 @@ export class InventoryRepository {
   async findByShopId(
     shopId: string,
     options: InventoryQueryOptions = {}
-  ): Promise<{ items: IInventoryItem[]; total: number; page: number; pages: number }> {
+  ): Promise<{
+    items: IInventoryItem[];
+    total: number;
+    page: number;
+    pages: number;
+  }> {
     const {
       category,
       subCategory,
-      isActive ,
+      isActive,
       isLowStock,
       isOutOfStock,
       search,
@@ -87,21 +98,29 @@ export class InventoryRepository {
     if (typeof isActive === "boolean") {
       query.isActive = isActive;
     }
-  
-    // Low stock filter 
+
+    // Low stock filter
     if (typeof isLowStock === "boolean") {
       query.isLowStock = isLowStock;
     }
-  
-    // Out of stock filter 
+
+    // Out of stock filter
     if (typeof isOutOfStock === "boolean") {
       query.isOutOfStock = isOutOfStock;
     }
 
     // Search filter
     if (search) {
-      query.$text = { $search: search };
-    }
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    query.$or = [
+      { name: { $regex: escapedSearch, $options: 'i' } },  // ← The 'i' flag!
+      { description: { $regex: escapedSearch, $options: 'i' } },
+      { sku: { $regex: escapedSearch, $options: 'i' } },
+      { category: { $regex: escapedSearch, $options: 'i' } },
+      { subCategory: { $regex: escapedSearch, $options: 'i' } },
+    ];
+  }
 
     // Tags filter
     if (tags && tags.length > 0) {
@@ -135,7 +154,10 @@ export class InventoryRepository {
   /**
    * Update item
    */
-  async update(itemId: string, updates: Partial<IInventoryItem>): Promise<IInventoryItem | null> {
+  async update(
+    itemId: string,
+    updates: Partial<IInventoryItem>
+  ): Promise<IInventoryItem | null> {
     return await Inventory.findByIdAndUpdate(itemId, updates, { new: true });
   }
 
@@ -171,13 +193,16 @@ export class InventoryRepository {
   /**
    * Update stock quantity (for sales)
    */
-  async reduceStock(itemId: string, quantity: number): Promise<IInventoryItem | null> {
+  async reduceStock(
+    itemId: string,
+    quantity: number
+  ): Promise<IInventoryItem | null> {
     return await Inventory.findByIdAndUpdate(
       itemId,
       {
-        $inc: { 
+        $inc: {
           availableQuantity: -quantity,
-          soldQuantity: quantity 
+          soldQuantity: quantity,
         },
         lastSold: new Date(),
       },
@@ -188,13 +213,16 @@ export class InventoryRepository {
   /**
    * Restore stock (for refunds)
    */
-  async restoreStock(itemId: string, quantity: number): Promise<IInventoryItem | null> {
+  async restoreStock(
+    itemId: string,
+    quantity: number
+  ): Promise<IInventoryItem | null> {
     return await Inventory.findByIdAndUpdate(
       itemId,
       {
-        $inc: { 
+        $inc: {
           availableQuantity: quantity,
-          soldQuantity: -quantity 
+          soldQuantity: -quantity,
         },
       },
       { new: true }
@@ -204,7 +232,11 @@ export class InventoryRepository {
   /**
    * Restock item
    */
-  async restock(itemId: string, quantity: number, costPrice?: number): Promise<IInventoryItem | null> {
+  async restock(
+    itemId: string,
+    quantity: number,
+    costPrice?: number
+  ): Promise<IInventoryItem | null> {
     const updates: any = {
       $inc: { availableQuantity: quantity },
       lastRestocked: new Date(),
@@ -244,7 +276,9 @@ export class InventoryRepository {
   /**
    * Record stock movement
    */
-  async recordStockMovement(movement: Partial<StockMovement>): Promise<StockMovement> {
+  async recordStockMovement(
+    movement: Partial<StockMovement>
+  ): Promise<StockMovement> {
     return await StockMovementModel.create(movement);
   }
 
@@ -297,7 +331,10 @@ export class InventoryRepository {
   /**
    * Get expiring items (within next N days)
    */
-  async getExpiringItems(shopId: string, days: number = 30): Promise<IInventoryItem[]> {
+  async getExpiringItems(
+    shopId: string,
+    days: number = 30
+  ): Promise<IInventoryItem[]> {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
 
@@ -313,7 +350,9 @@ export class InventoryRepository {
   /**
    * Get categories with item counts
    */
-  async getCategories(shopId: string): Promise<Array<{ category: string; count: number }>> {
+  async getCategories(
+    shopId: string
+  ): Promise<Array<{ category: string; count: number }>> {
     return await Inventory.aggregate([
       {
         $match: {
@@ -342,101 +381,108 @@ export class InventoryRepository {
    * Get inventory analytics
    */
   async getAnalytics(shopId: string): Promise<any> {
-    const [summary, categoryBreakdown, topSelling, slowMoving] = await Promise.all([
-      // Overall summary
-      Inventory.aggregate([
-        {
-          $match: {
-            shopId: new Types.ObjectId(shopId),
-            isActive: true,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalItems: { $sum: 1 },
-            totalValue: { $sum: { $multiply: ["$availableQuantity", "$costPrice"] } },
-            totalRetailValue: { $sum: { $multiply: ["$availableQuantity", "$sellingPrice"] } },
-            lowStockItems: {
-              $sum: { $cond: ["$isLowStock", 1, 0] },
-            },
-            outOfStockItems: {
-              $sum: { $cond: ["$isOutOfStock", 1, 0] },
+    const [summary, categoryBreakdown, topSelling, slowMoving] =
+      await Promise.all([
+        // Overall summary
+        Inventory.aggregate([
+          {
+            $match: {
+              shopId: new Types.ObjectId(shopId),
+              isActive: true,
             },
           },
-        },
-      ]),
+          {
+            $group: {
+              _id: null,
+              totalItems: { $sum: 1 },
+              totalValue: {
+                $sum: { $multiply: ["$availableQuantity", "$costPrice"] },
+              },
+              totalRetailValue: {
+                $sum: { $multiply: ["$availableQuantity", "$sellingPrice"] },
+              },
+              lowStockItems: {
+                $sum: { $cond: ["$isLowStock", 1, 0] },
+              },
+              outOfStockItems: {
+                $sum: { $cond: ["$isOutOfStock", 1, 0] },
+              },
+            },
+          },
+        ]),
 
-      // Category breakdown
-      Inventory.aggregate([
-        {
-          $match: {
-            shopId: new Types.ObjectId(shopId),
-            isActive: true,
+        // Category breakdown
+        Inventory.aggregate([
+          {
+            $match: {
+              shopId: new Types.ObjectId(shopId),
+              isActive: true,
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$category",
-            itemCount: { $sum: 1 },
-            totalValue: { $sum: { $multiply: ["$availableQuantity", "$costPrice"] } },
+          {
+            $group: {
+              _id: "$category",
+              itemCount: { $sum: 1 },
+              totalValue: {
+                $sum: { $multiply: ["$availableQuantity", "$costPrice"] },
+              },
+            },
           },
-        },
-        {
-          $project: {
-            _id: 0,
-            category: "$_id",
-            itemCount: 1,
-            totalValue: 1,
+          {
+            $project: {
+              _id: 0,
+              category: "$_id",
+              itemCount: 1,
+              totalValue: 1,
+            },
           },
-        },
-        { $sort: { totalValue: -1 } },
-      ]),
+          { $sort: { totalValue: -1 } },
+        ]),
 
-      // Top selling items
-      Inventory.aggregate([
-        {
-          $match: {
-            shopId: new Types.ObjectId(shopId),
-            isActive: true,
-            soldQuantity: { $gt: 0 },
+        // Top selling items
+        Inventory.aggregate([
+          {
+            $match: {
+              shopId: new Types.ObjectId(shopId),
+              isActive: true,
+              soldQuantity: { $gt: 0 },
+            },
           },
-        },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            soldQuantity: 1,
-            revenue: { $multiply: ["$soldQuantity", "$sellingPrice"] },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              soldQuantity: 1,
+              revenue: { $multiply: ["$soldQuantity", "$sellingPrice"] },
+            },
           },
-        },
-        { $sort: { soldQuantity: -1 } },
-        { $limit: 10 },
-      ]),
+          { $sort: { soldQuantity: -1 } },
+          { $limit: 10 },
+        ]),
 
-      // Slow moving items
-      Inventory.aggregate([
-        {
-          $match: {
-            shopId: new Types.ObjectId(shopId),
-            isActive: true,
-            availableQuantity: { $gt: 0 },
-            soldQuantity: { $lt: 5 }, // Sold less than 5 units
+        // Slow moving items
+        Inventory.aggregate([
+          {
+            $match: {
+              shopId: new Types.ObjectId(shopId),
+              isActive: true,
+              availableQuantity: { $gt: 0 },
+              soldQuantity: { $lt: 5 }, // Sold less than 5 units
+            },
           },
-        },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            availableQuantity: 1,
-            lastSold: 1,
-            soldQuantity: 1,
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              availableQuantity: 1,
+              lastSold: 1,
+              soldQuantity: 1,
+            },
           },
-        },
-        { $sort: { soldQuantity: 1 } },
-        { $limit: 10 },
-      ]),
-    ]);
+          { $sort: { soldQuantity: 1 } },
+          { $limit: 10 },
+        ]),
+      ]);
 
     const result = summary[0] || {
       totalItems: 0,
@@ -472,7 +518,11 @@ export class InventoryRepository {
   /**
    * Check if SKU exists
    */
-  async skuExists(shopId: string, sku: string, excludeItemId?: string): Promise<boolean> {
+  async skuExists(
+    shopId: string,
+    sku: string,
+    excludeItemId?: string
+  ): Promise<boolean> {
     const query: any = {
       shopId: new Types.ObjectId(shopId),
       sku: sku.toUpperCase(),
@@ -489,7 +539,11 @@ export class InventoryRepository {
   /**
    * Check if barcode exists
    */
-  async barcodeExists(shopId: string, barcode: string, excludeItemId?: string): Promise<boolean> {
+  async barcodeExists(
+    shopId: string,
+    barcode: string,
+    excludeItemId?: string
+  ): Promise<boolean> {
     const query: any = {
       shopId: new Types.ObjectId(shopId),
       barcode,

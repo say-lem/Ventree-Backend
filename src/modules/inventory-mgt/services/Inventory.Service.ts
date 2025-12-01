@@ -136,7 +136,7 @@ export class InventoryService {
     const { requestId, userId, userRole, userShopId } = metadata;
 
     await this.validateShopAccess(shopId, userShopId, userRole);
-    console.log(shopId, options)
+    // console.log(shopId, options)
 
     const result = await this.inventoryRepository.findByShopId(shopId, options);
 

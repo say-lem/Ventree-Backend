@@ -1,0 +1,1 @@
+{"timestamp":"2025-11-30T04:42:27.326Z","requestId":"0b795cae-1a35-464d-8e1d-0a1dd64bb752","action":"ITEMS_SOLD_VIEWED","shopId":"6925c9061e34f45241127aae","performedBy":{"userId":"owner","role":"owner"},"details":{"count":8,"filters":{"includeRefunded":false,"page":1,"limit":20,"sortBy":"date","sortOrder":"desc"}}}
