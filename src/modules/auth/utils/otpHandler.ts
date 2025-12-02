@@ -9,6 +9,10 @@ export const sendOTP = async (phoneNumber: string, otp: string) => {
     const authToken = process.env.TWILLOAUTHTOKEN;
     const client = require('twilio')(accountSid, authToken);
 
+    console.log(`TWILLOACCOUNTSID:${accountSid}`)
+    console.log(`TWILLOAUTHTOKEN: ${authToken}`)
+    console.log(`VENTREENUMBER: ${process.env.VENTREE_PHONE_NUMBER}`)
+    
     const message = await client.messages.create({
       body: `Your ventree verification code is: ${otp}`,
       from: process.env.VENTREE_PHONE_NUMBER,

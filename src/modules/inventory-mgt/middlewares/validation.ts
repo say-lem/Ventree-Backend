@@ -375,7 +375,7 @@ export const getInventoryValidation = [
   query("search")
     .optional()
     .trim()
-    .isLength({ min: 2, max: 100 })
+    .isLength({ min: 1, max: 100 })
     .withMessage("Search term must be between 2 and 100 characters"),
   query("minPrice")
     .optional()
