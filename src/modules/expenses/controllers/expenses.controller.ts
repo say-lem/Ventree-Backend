@@ -17,7 +17,6 @@ import { ValidationError } from "../../../shared/utils/AppError";
 export const createExpenseController = async (req: Request, res: Response) => {
   
   try {
-    console.log("Creating expense with body:", req.body);
     const { shopId, staffId, amount, title, category, notes } = req.body;
     const authUser = req.user
     const uploader = staffId || shopId
@@ -31,18 +30,56 @@ export const createExpenseController = async (req: Request, res: Response) => {
 };
 
 
-// GET ALL EXPENSES
+// ============================================
+// CHANGES TO: controllers/expenses.controller.ts
+// ============================================
+
+// ✅ REPLACE getExpensesController with this updated version
 export const getExpensesController = async (req: Request, res: Response) => {
   try {
     const { shopId } = req.params;
+    
+    // Extract query parameters
+    const {
+      page = 1,
+      limit = 10,
+      category,
+      startDate,
+      endDate,
+      minAmount,
+      maxAmount,
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc"
+    } = req.query;
 
-    const expenses = await getExpensesService({ shopId, reqUser: req.user });
+    // Call service with all parameters
+    const result = await getExpensesService({ 
+      shopId, 
+      reqUser: req.user,
+      page: Number(page),
+      limit: Number(limit),
+      category: category as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      minAmount: minAmount ? Number(minAmount) : undefined,
+      maxAmount: maxAmount ? Number(maxAmount) : undefined,
+      search: search as string,
+      sortBy: sortBy as string,
+      sortOrder: sortOrder as "asc" | "desc"
+    });
 
-    return res.status(200).json({ success: true, data: expenses });
+    return res.status(200).json({ 
+      success: true, 
+      data: result.expenses,
+      pagination: result.pagination 
+    });
   } catch (error: any) {
     return res.status(400).json({ success: false, message: error.message });
   }
 };
+
+// Keep all other controllers unchanged...
 
 
 // GET FILTERED EXPENSES (today | week | month)
@@ -83,7 +120,6 @@ export const updateExpenseController = async (req: Request, res: Response) => {
   try {
     const { shopId, expenseId } = req.params;
     const updateData = req.body;
-    console.log(req.user)
     const updatedExpense = await updateExpenseService({ shopId, expenseId, updateData, reqUser: req.user });
 
     return res.status(200).json({ success: true, data: updatedExpense });
@@ -111,7 +147,7 @@ export const getTotalExpensesController = async (req, res, next) => {
   try {
     const { shopId, staffId } = req.params;
     const totals = await getTotalExpensesService({ shopId, staffId, reqUser: req.user });
-    res.json(totals);
+    return res.status(200).json({ success: true, data: totals });
   } catch (err) {
     next(err);
   }

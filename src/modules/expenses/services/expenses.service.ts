@@ -88,7 +88,26 @@ export const createExpenseService = async ({ shopId, staffId, authUser, amount, 
 
 
 
-export const getExpensesService = async ({ shopId, reqUser }) => {
+// ============================================
+// CHANGES TO: services/expenses.service.ts
+// ============================================
+
+// ✅ REPLACE getExpensesService with this updated version
+export const getExpensesService = async ({ 
+  shopId, 
+  reqUser,
+  // New parameters for pagination and filters
+  page = 1,
+  limit = 10,
+  category,
+  startDate,
+  endDate,
+  minAmount,
+  maxAmount,
+  search,
+  sortBy = "createdAt",
+  sortOrder = "desc"
+}) => {
   // 1. Shop exists?
   const shop = await Shop.findById(shopId);
   if (!shop) throw new ValidationError("Invalid shop id, shop does not exist");
@@ -96,15 +115,73 @@ export const getExpensesService = async ({ shopId, reqUser }) => {
   // 2. Role logic
   if (reqUser.role === "owner") {
     // ✔ Owner: skip staff check
-    return Expense.find({ shopId }).sort({ createdAt: -1 });
+  } else if (reqUser.role === "staff") {
+    throw new ValidationError("Unauthorized. Staff does not belong to this shop");
   }
 
-  // 3. Staff logic: Must belong to shop
-  // const staff = await Staff.findOne({ _id: staffId, shop: shopId });
-  if (reqUser.role === "staff") throw new ValidationError("Unauthorized. Staff does not belong to this shop");
+  // 3. Build query with filters
+  const query: any = { shopId };
 
-  // return Expense.find({ shopId }).sort({ createdAt: -1 });
+  // Category filter
+  if (category) {
+    query.category = category;
+  }
+
+  // Date range filter
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = new Date(startDate);
+    if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+
+  // Amount range filter
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    query.amount = {};
+    if (minAmount !== undefined) query.amount.$gte = minAmount;
+    if (maxAmount !== undefined) query.amount.$lte = maxAmount;
+  }
+
+  // Search filter (title or notes)
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: "i" } },
+      { notes: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  // 4. Build sort object
+  const sort: any = {};
+  sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+  // 5. Calculate pagination
+  const skip = (page - 1) * limit;
+
+  // 6. Execute query with pagination
+  const [expenses, total] = await Promise.all([
+    Expense.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Expense.countDocuments(query)
+  ]);
+
+  // 7. Calculate pages
+  const pages = Math.ceil(total / limit);
+
+  // 8. Return paginated response
+  return {
+    expenses,
+    pagination: {
+      total,
+      page,
+      pages,
+      limit
+    }
+  };
 };
+
+
 
 
 
@@ -231,7 +308,6 @@ export const deleteExpenseService = async ({ shopId, expenseId, reqUser }) => {
   // 2. Optionally: verify requester is shop.ownerId (if you store owner in shop)
   if (reqUser.shopId !== toString(shop._id)) throw new ValidationError("Only the shop owner can delete an expense");
 
-  console.log(expenseId, shopId)
   // 3. Delete expense
   const expense = await Expense.findOneAndDelete({ _id: expenseId, shopId });
   if (!expense) throw new ValidationError("Expense not found");
@@ -275,3 +351,4 @@ export const getTotalExpensesService = async ({ shopId, staffId, reqUser }) => {
 
   return result;
 };
+

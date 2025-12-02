@@ -12,6 +12,7 @@ import {
   expensesDeleteValidation,
   shopIdParamValidation,
   filterExpensesValidation,
+  getExpensesValidation,
 } from "../validators/expenses.validator";
 import {
   createExpenseController,
@@ -42,11 +43,12 @@ router.post(
 // ─────────────────────────────────────────────
 // LIST ALL EXPENSES
 // ─────────────────────────────────────────────
+// ✅ UPDATE THIS ROUTE - Add getExpensesValidation
 router.get(
   "/:shopId",
   authenticate,
-  shopIdParamValidation,
-  validateRequest,
+  getExpensesValidation, // ← CHANGED from shopIdParamValidation
+  validateRequest, // ← ADD validateRequest
   getExpensesController
 );
 
