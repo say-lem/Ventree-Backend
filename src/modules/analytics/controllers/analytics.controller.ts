@@ -194,10 +194,18 @@ export const exportBestSellersCsv = asyncHandler(
       }
     );
 
-    const header = ["Item ID", "Product Name", "Units Sold", "Revenue", "Contribution (%)"];
+    const header = [
+      "Item ID",
+      "Product Name",
+      "Category",
+      "Units Sold",
+      "Revenue",
+      "Contribution (%)",
+    ];
     const rows = bestSellers.map((item) => [
       item.itemId,
       item.productName,
+      item.category || "",
       item.unitsSold,
       item.revenue,
       item.contribution.toFixed(2),

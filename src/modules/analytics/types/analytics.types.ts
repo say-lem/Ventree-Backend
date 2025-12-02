@@ -24,6 +24,7 @@ export interface SalesTrendPoint {
 export interface BestSeller {
   itemId: string;
   productName: string;
+  category?: string;
   unitsSold: number;
   revenue: number;
   contribution: number;

@@ -183,6 +183,7 @@ export class AnalyticsService {
     return limited.map((item) => ({
       itemId: item.itemId,
       productName: item.itemName,
+      category: item.itemCategory,
       unitsSold: item.quantitySold,
       revenue: item.revenue,
       contribution: totalRevenue > 0 ? (item.revenue / totalRevenue) * 100 : 0,

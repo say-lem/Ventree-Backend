@@ -132,6 +132,7 @@ export interface TicketAnalytics {
     itemName: string;
     quantitySold: number;
     revenue: number;
+    itemCategory?: string;
   }>;
   salesByPaymentMethod: Array<{
     method: string;

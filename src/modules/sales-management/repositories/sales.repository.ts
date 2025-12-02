@@ -233,6 +233,7 @@ export class TicketRepository {
             itemName: { $first: "$items.itemName" },
             quantitySold: { $sum: "$items.quantitySold" },
             revenue: { $sum: "$items.lineTotal" },
+            itemCategory: { $first: "$items.itemCategory" },
           },
         },
         { $sort: { quantitySold: -1 } },
@@ -313,6 +314,7 @@ export class TicketRepository {
         itemName: item.itemName,
         quantitySold: item.quantitySold,
         revenue: item.revenue,
+        itemCategory: item.itemCategory,
       })),
       salesByPaymentMethod: paymentMethods.map((method) => ({
         method: method._id,
