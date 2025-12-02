@@ -414,11 +414,11 @@ export class UserService {
 
       const expensesData = expensesAggregation[0] || { totalExpenses: 0 };
 
-      // Get low stock items 
+      // Get low stock items (including out of stock)
       const lowStockItemsList = await Inventory.find({
         shopId: new Types.ObjectId(shopId),
         isActive: true,
-        isLowStock: true,
+        $or: [{ isLowStock: true }, { isOutOfStock: true }],
       })
         .select("_id name sku category availableQuantity reorderLevel unit sellingPrice costPrice")
         .sort({ availableQuantity: 1 })
