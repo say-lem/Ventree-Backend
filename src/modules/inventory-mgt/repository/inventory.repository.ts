@@ -284,30 +284,6 @@ export class InventoryRepository {
   }
 
   /**
-   * Get count of low stock and out of stock items based on actual quantities
-   */
-  async getLowStockCount(shopId: string): Promise<number> {
-    const result = await Inventory.aggregate([
-      {
-        $match: {
-          shopId: new Types.ObjectId(shopId),
-          $or: [
-            { isLowStock: true },
-            { isOutOfStock: true },
-            { $expr: { $lte: ["$quantityInStock", "$reorderLevel"] } },
-            { quantityInStock: { $lte: 0 } }
-          ]
-        }
-      },
-      {
-        $count: "count"
-      }
-    ]);
-
-    return result[0]?.count || 0;
-  }
-
-  /**
    * Get out of stock items
    */
   async getOutOfStockItems(shopId: string): Promise<IInventoryItem[]> {

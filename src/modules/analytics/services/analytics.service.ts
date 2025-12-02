@@ -72,7 +72,7 @@ export class AnalyticsService {
       return existingSnapshot.payload as DashboardOverview;
     }
 
-    const [salesAnalyticsRaw, expensesTotal, lowStockItems, outOfStockItems, lowStockCount] = await Promise.all([
+    const [salesAnalyticsRaw, expensesTotal, lowStockItems, outOfStockItems] = await Promise.all([
       this.saleRepository.getAnalytics(shopId, {
         startDate: start,
         endDate: end,
@@ -81,8 +81,6 @@ export class AnalyticsService {
       this.analyticsRepository.getExpensesTotal(shopId, start, end),
       this.inventoryRepository.getLowStockItems(shopId),
       this.inventoryRepository.getOutOfStockItems(shopId),
-      // Get count of items that are low or out of stock based on actual quantities
-      this.inventoryRepository.getLowStockCount(shopId)
     ]);
 
     const salesAnalytics = salesAnalyticsRaw as TicketAnalytics;
@@ -90,8 +88,7 @@ export class AnalyticsService {
     const totalProfit = salesAnalytics.totalProfit || 0;
     const totalCogs = totalSales - totalProfit;
     const profit = totalProfit - expensesTotal;
-    // Use the accurate count from the database query
-    const lowStockAlertCount = lowStockCount;
+    const lowStockAlertCount = lowStockItems.length + outOfStockItems.length;
     const overview: DashboardOverview = {
       date: start.toISOString(),
       totalSales,
