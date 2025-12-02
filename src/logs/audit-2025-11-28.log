@@ -16,3 +16,5 @@
 {"timestamp":"2025-11-28T07:26:41.348Z","requestId":"b972175b-6596-42c9-ad16-02eca9d3a109","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6921a245f6b31bb3682e2b83","role":"owner"}
 >>>>>>> origin/main
 >>>>>>> 22db54063c0d9655aa05c7e4b04947a8cbec0c78
+{"timestamp":"2025-11-28T12:04:34.344Z","requestId":"929a1672-86da-400c-90df-4cbbd4203ea6","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
+{"timestamp":"2025-11-28T12:22:09.129Z","requestId":"f0a2afae-d9f5-4666-b0d1-f41d43d77b08","action":"LOGIN_SUCCESS","ip":"::1","shopId":"6925c9061e34f45241127aae","role":"owner"}
